@@ -3781,11 +3781,6 @@ const s16 D_i5_801BAB0C[4][10] = {
 
 const char D_i5_801BAB5C[] = "Enm->chpt=<%d>\n";
 
-#ifdef NON_MATCHING
-// https://decomp.me/scratch/KiTNa
-// Regalloc in the random ternary. Can't be a temp as it's too low on stack
-
-// Titania_TiGoras_Attack ?
 void Titania_80193DF0(TiGoras* this) {
     Vec3f spD4;
     Vec3f spC8;
@@ -3803,7 +3798,7 @@ void Titania_80193DF0(TiGoras* this) {
     Vec3f sp90;
     Vec3f sp84;
 
-    Matrix_RotateY(gCalcMatrix, this->obj.rot.y * M_DTOR, MTXF_NEW);
+    Matrix_RotateY(gCalcMatrix, this->obj.rot.y * M_DTOR, 0);
 
     for (i = 0; i < ARRAY_COUNTU(D_i5_801BBF00); i++) {
         if (D_i5_801BBF00[i].unk_26 & 0x10) {
@@ -3829,52 +3824,45 @@ void Titania_80193DF0(TiGoras* this) {
         if (D_i5_801BBF00[i].unk_26 & 2) {
             actor = Game_SpawnActor(OBJ_ACTOR_DEBRIS);
             if (actor != NULL) {
-                actor->state = ACTORDEBRIS_TI_GORAS;
+                actor->state = 40;
                 actor->work_046 = D_i5_801B7770[i][5];
                 actor->work_048 = D_i5_801B7770[i][1];
                 if (D_i5_801B7770[i][0] == 85) {
                     actor->fwork[0] = 5.0f;
                     actor->fwork[1] = 5.0f;
-
                     actor->obj.pos.x = this->obj.pos.x + D_i5_801BBF00[i].unk_00.pos.x;
                     actor->obj.pos.y = this->obj.pos.y + D_i5_801BBF00[i].unk_00.pos.y;
                     actor->obj.pos.z = this->obj.pos.z + D_i5_801BBF00[i].unk_00.pos.z;
-
                     actor->obj.rot.x = this->obj.rot.x + D_i5_801BBF00[i].unk_00.rot.x;
                     actor->obj.rot.y = this->obj.rot.y + D_i5_801BBF00[i].unk_00.rot.y;
                     actor->obj.rot.z = this->obj.rot.z + D_i5_801BBF00[i].unk_00.rot.z;
-
                     Matrix_Push(&gCalcMatrix);
-                    Matrix_RotateY(gCalcMatrix, 0.0f, MTXF_NEW);
+                    Matrix_RotateY(gCalcMatrix, 0.0f, 0);
                     Matrix_MultVec3f(gCalcMatrix, &D_i5_801B8D18, &spC8);
                     Matrix_Pop(&gCalcMatrix);
-
                     actor->vel.x = spC8.x;
                     actor->vel.y = 5.0f;
                     actor->vel.z = spC8.z;
-
                     actor->gravity = 0.8f;
                 } else {
                     actor->fwork[0] = 10.0f + RAND_FLOAT(10.0f);
                     actor->fwork[1] = 10.0f + RAND_FLOAT(10.0f);
-
                     actor->obj.pos.x = this->obj.pos.x + D_i5_801BBF00[i].unk_00.pos.x;
                     actor->obj.pos.y = this->obj.pos.y + D_i5_801BBF00[i].unk_00.pos.y;
                     actor->obj.pos.z = this->obj.pos.z + D_i5_801BBF00[i].unk_00.pos.z;
-
                     actor->obj.rot.x = this->obj.rot.x + D_i5_801BBF00[i].unk_00.rot.x;
                     actor->obj.rot.y = this->obj.rot.y + D_i5_801BBF00[i].unk_00.rot.y;
                     actor->obj.rot.z = this->obj.rot.z + D_i5_801BBF00[i].unk_00.rot.z;
-
                     Matrix_Push(&gCalcMatrix);
-                    Matrix_RotateY(gCalcMatrix, RAND_FLOAT(360.0f) * M_DTOR, MTXF_NEW);
+                    Matrix_RotateY(gCalcMatrix, RAND_FLOAT(360.0f) * M_DTOR, 0);
                     Matrix_MultVec3f(gCalcMatrix, &D_i5_801B8D0C, &spC8);
                     Matrix_Pop(&gCalcMatrix);
-
                     actor->vel.x = spC8.x;
-                    // pad2 = ((Rand_ZeroOne() < 0.5f) ? -1 : 1);
-                    actor->vel.y = ((Rand_ZeroOne() < 0.5f) ? -1 : 1) * (15.0f + RAND_FLOAT(2.0f));
+                    actor->vel.y = ((Rand_ZeroOne() < 0.5f) ? (-1) : (1)) * (15.0f + RAND_FLOAT(2.0f));
                     actor->vel.z = spC8.z;
+
+                    if (SQ(D_i5_801BBF00[i].unk_24)) {} //! FAKE
+
                     actor->gravity = 2.5f;
                 }
             }
@@ -3887,10 +3875,12 @@ void Titania_80193DF0(TiGoras* this) {
         Math_SmoothStepToF(&D_i5_801BBEF4[15], D_i5_801BBEF4[24], 1.0f, D_i5_801BBEF4[32], 0.01f);
         Math_SmoothStepToAngle(&D_i5_801BBEF4[16], D_i5_801BBEF4[25], 1.0f, D_i5_801BBEF4[33], 0.01f);
     }
+
     if (this->fwork[39] != 0.0f) {
         Math_SmoothStepToAngle(&D_i5_801BBEF4[18], D_i5_801BBEF4[27], 1.0f, D_i5_801BBEF4[34], 0.01f);
         Math_SmoothStepToAngle(&D_i5_801BBEF4[19], D_i5_801BBEF4[28], 1.0f, D_i5_801BBEF4[34], 0.01f);
     }
+
     if (this->fwork[40] != 0.0f) {
         Math_SmoothStepToAngle(&D_i5_801BBEF4[21], D_i5_801BBEF4[30], 1.0f, D_i5_801BBEF4[35], 0.01f);
         Math_SmoothStepToAngle(&D_i5_801BBEF4[22], D_i5_801BBEF4[31], 1.0f, D_i5_801BBEF4[35], 0.01f);
@@ -3904,7 +3894,7 @@ void Titania_80193DF0(TiGoras* this) {
         D_i5_801BBEF0[6]--;
         if (D_i5_801BBEF0[6] == 0) {
             for (i = 0; i < ARRAY_COUNTU(D_i5_801BBF00); i++) {
-                D_i5_801BBF00[i].unk_18.x = D_i5_801BBF00[i].unk_18.y = D_i5_801BBF00[i].unk_18.z = 0.0f;
+                D_i5_801BBF00[i].unk_18.x = (D_i5_801BBF00[i].unk_18.y = (D_i5_801BBF00[i].unk_18.z = 0.0f));
             }
         }
     }
@@ -3925,6 +3915,7 @@ void Titania_80193DF0(TiGoras* this) {
     if (this->swork[22] > 0) {
         this->swork[22]--;
     }
+
     if (this->swork[28] != 0) {
         if (this->swork[27] > 0) {
             this->swork[27]--;
@@ -3966,7 +3957,8 @@ void Titania_80193DF0(TiGoras* this) {
                     break;
                 }
             }
-            if (this->animFrame) {}
+
+            if (this->animFrame) {} //! FAKE
 
             if (j == ARRAY_COUNT(D_i5_801B8160)) {
                 D_i5_801BBF00[i].unk_18.z = RAND_FLOAT(5.0f) - 2.5f;
@@ -3980,11 +3972,13 @@ void Titania_80193DF0(TiGoras* this) {
         }
     }
 
-    if ((this->state >= 7) && (this->state < 14) && (this->dmgType == DMG_BEAM) &&
-        (D_i5_801BAA78[D_i5_801B7904[this->dmgPart]] == 2) && (D_i5_801BBEF0[8] == 0)) {
+    if (((((this->state >= 7) && (this->state < 14)) && (this->dmgType == DMG_BEAM)) &&
+         (D_i5_801BAA78[D_i5_801B7904[this->dmgPart]] == 2)) &&
+        (D_i5_801BBEF0[8] == 0)) {
         AUDIO_PLAY_SFX(NA_SE_EN_REFLECT, this->sfxSource, 4);
         this->dmgType = DMG_NONE;
     }
+
     if ((this->state >= 7) && (this->state < 14)) {
         if (this->dmgType == DMG_BEAM) {
             this->dmgType = DMG_NONE;
@@ -4006,12 +4000,14 @@ void Titania_80193DF0(TiGoras* this) {
                         D_i5_801BBEF4[10] = 2.0f;
                     }
                 }
+
                 pad = 0;
                 for (i = 0; i < 4; i++) {
                     if (this->swork[9 + i] <= 0) {
                         pad++;
                     }
                 }
+
                 if ((pad == 3) && (D_i5_801BBEF0[8] == 0)) {
                     D_i5_801BBF00[39].unk_26 |= 0x10 | 0x1;
                 }
@@ -4021,7 +4017,7 @@ void Titania_80193DF0(TiGoras* this) {
                     this->swork[27] = 80;
                     this->swork[35]++;
                 }
-            } else if ((gBossHealthBar > 0) && (D_i5_801B7904[this->dmgPart] == 23) && (this->swork[29] != 0) &&
+            } else if ((((gBossHealthBar > 0) && (D_i5_801B7904[this->dmgPart] == 23)) && (this->swork[29] != 0)) &&
                        (this->swork[21] > 0)) {
                 this->swork[21] -= this->damage;
                 if (this->swork[21] <= 0) {
@@ -4031,7 +4027,6 @@ void Titania_80193DF0(TiGoras* this) {
                     AUDIO_PLAY_SFX(NA_SE_EN_DOWN_IMPACT, this->sfxSource, 4);
                 } else {
                     AUDIO_PLAY_SFX(NA_SE_EN_TIBOSS_DM_CRY, this->sfxSource, 4);
-
                     if (this->swork[21] <= 10) {
                         D_i5_801BBEF0[1] = 15;
                     } else if (this->swork[21] <= 20) {
@@ -4041,7 +4036,6 @@ void Titania_80193DF0(TiGoras* this) {
                 gBossHealthBar = (s32) ((this->swork[21] * 255.0f) / 100.0f);
                 this->swork[22] = 20;
                 D_i5_801BBEF0[6] = 20;
-
                 D_i5_801BBEF4[10] = 4.0f;
             } else if (D_i5_801B7904[this->dmgPart] == 28) {
                 this->swork[37] |= 4;
@@ -4051,9 +4045,10 @@ void Titania_80193DF0(TiGoras* this) {
             }
         }
 
-        if ((this->dmgType == DMG_BOMB) && (this->dmgPart == 1) && (D_i5_801BBEF0[8] == 0)) {
+        if (((this->dmgType == DMG_BOMB) && (this->dmgPart == 1)) && (D_i5_801BBEF0[8] == 0)) {
             this->dmgType = DMG_NONE;
         }
+
         if (this->dmgType == DMG_BOMB) {
             this->dmgType = DMG_NONE;
             switch (this->dmgPart) {
@@ -4063,19 +4058,15 @@ void Titania_80193DF0(TiGoras* this) {
                 case 3:
                     AUDIO_PLAY_SFX(NA_SE_EN_TIBOSS_DM_CRY, this->sfxSource, 4);
                     this->swork[this->dmgPart + 5] = 20;
-
                     if (this->swork[this->dmgPart + 9] <= 0) {
                         break;
                     }
-
                     this->swork[this->dmgPart + 9] -= this->damage;
-
                     if (this->swork[this->dmgPart + 9] <= 0) {
                         this->swork[this->dmgPart + 9] = 0;
                         D_i5_801BBEF0[6] = 40;
                         D_i5_801BBEF4[10] = 2.0f;
                         pad = 0;
-
                         for (i = 0; i < 4; i++) {
                             if (this->swork[9 + i] <= 0) {
                                 pad++;
@@ -4095,11 +4086,9 @@ void Titania_80193DF0(TiGoras* this) {
                     break;
 
                 case 4:
-                    if ((gBossHealthBar > 0) && (this->swork[29] != 0) && (this->swork[21] > 0)) {
+                    if (((gBossHealthBar > 0) && (this->swork[29] != 0)) && (this->swork[21] > 0)) {
                         AUDIO_PLAY_SFX(NA_SE_EN_TIBOSS_DM_CRY, this->sfxSource, 4);
-
                         this->swork[21] -= this->damage;
-
                         if (this->swork[21] <= 0) {
                             this->swork[21] = 0;
                             gScreenFlashTimer = 8;
@@ -4107,7 +4096,6 @@ void Titania_80193DF0(TiGoras* this) {
                             AUDIO_PLAY_SFX(NA_SE_EN_DOWN_IMPACT, this->sfxSource, 4);
                         } else {
                             AUDIO_PLAY_SFX(NA_SE_EN_TIBOSS_DM_CRY, this->sfxSource, 4);
-
                             if (this->swork[21] < 11) {
                                 D_i5_801BBEF0[1] = 15;
                             } else if (this->swork[21] < 21) {
@@ -4124,7 +4112,7 @@ void Titania_80193DF0(TiGoras* this) {
         }
     }
 
-    if ((this->state >= 6) && (this->state < 14) && (D_i5_801BBEF0[1] != 0)) {
+    if (((this->state >= 6) && (this->state < 14)) && (D_i5_801BBEF0[1] != 0)) {
         D_i5_801BBEF0[0]++;
         if (D_i5_801BBEF0[0] >= D_i5_801BBEF0[1]) {
             D_i5_801BBEF0[0] -= D_i5_801BBEF0[1];
@@ -4200,11 +4188,10 @@ void Titania_80193DF0(TiGoras* this) {
 
         case 8:
             AUDIO_PLAY_SFX(NA_SE_EN_GATHER_PARTS, this->sfxSource, 4);
-
             for (i = 0; i < 33; i++) {
                 actor = Game_SpawnActor(OBJ_ACTOR_DEBRIS);
                 if (actor != NULL) {
-                    actor->state = ACTORDEBRIS_TI_GORAS;
+                    actor->state = 40;
                     actor->obj.pos.x = 0.0f;
                     actor->obj.pos.y = 0.0f;
                     actor->obj.pos.z = this->obj.pos.z + 2000.0f;
@@ -4217,6 +4204,7 @@ void Titania_80193DF0(TiGoras* this) {
                 }
                 D_i5_801B8198[i].actor = actor;
             }
+
             this->swork[28]++;
             break;
 
@@ -4229,31 +4217,28 @@ void Titania_80193DF0(TiGoras* this) {
                     actor->obj.pos.y = this->obj.pos.y + D_i5_801BBF00[pad2].unk_00.pos.y;
                 }
             }
+
             this->swork[28]++;
             break;
 
         case 10:
-            Matrix_RotateY(gCalcMatrix, this->obj.rot.y * M_DTOR, MTXF_NEW);
+            Matrix_RotateY(gCalcMatrix, this->obj.rot.y * M_DTOR, 0);
             spA4 = 0;
-
             for (i = 0; i < 33; i++) {
                 actor = D_i5_801B8198[i].actor;
                 if (actor != NULL) {
                     if (D_i5_801B8198[i].unk_0C == 0) {
                         pad2 = D_i5_801B8198[i].unk_00;
                         Matrix_MultVec3f(gCalcMatrix, &D_i5_801BBF00[pad2].unk_00.pos, &spC8);
-
                         sp9C =
                             fabsf(Math_SmoothStepToF(&actor->obj.pos.x, this->obj.pos.x + spC8.x, 1.0f, 40.0f, 0.01f));
                         sp9C +=
                             fabsf(Math_SmoothStepToF(&actor->obj.pos.y, this->obj.pos.y + spC8.y, 1.0f, 40.0f, 0.01f));
                         sp9C +=
                             fabsf(Math_SmoothStepToF(&actor->obj.pos.z, this->obj.pos.z + spC8.z, 1.0f, 90.0f, 0.01f));
-
                         actor->obj.rot.x += 20.0f;
                         actor->obj.rot.y += 20.0f;
                         actor->obj.rot.z += 20.0f;
-
                         if (sp9C <= 25.0f) {
                             D_i5_801BBF00[D_i5_801B8198[i].unk_00].unk_26 = 8;
                             Object_Kill(&actor->obj, actor->sfxSource);
@@ -4293,51 +4278,57 @@ void Titania_80193DF0(TiGoras* this) {
 
     Math_SmoothStepToAngle(&D_i5_801BBEF4[13], D_i5_801BBEF4[12], 0.5f, 1.5f, 0.01f);
     spB8 = 0;
-
     switch (this->state) {
         case 7:
             Animation_GetFrameData(&aTiGorasAnim6, this->animFrame >> 1, D_i5_801BC978);
             break;
+
         case 8:
             Animation_GetFrameData(&aTiGorasAnim9, this->animFrame >> 1, D_i5_801BC978);
             break;
+
         case 9:
             Animation_GetFrameData(&aTiGorasAnim12, this->animFrame >> 1, D_i5_801BC978);
             break;
+
         case 10:
             Animation_GetFrameData(&aTiGorasAnim8, this->animFrame >> 1, D_i5_801BC978);
             break;
+
         case 11:
+
         case 13:
             Animation_GetFrameData(&aTiGorasAnim14, this->animFrame >> 1, D_i5_801BC978);
             break;
+
         case 12:
             Animation_GetFrameData(&aTiGorasTailAttackAnim, this->animFrame >> 1, D_i5_801BC978);
             break;
     }
 
     pad2 = this->swork[34];
-
     switch (pad2) {
         case 0:
             break;
+
         case 1:
-            Animation_GetFrameData(&aTiGorasAnim7, (s32) this->fwork[48] >> 1, D_i5_801BD218);
-            // might need to copy individual values
+            Animation_GetFrameData(&aTiGorasAnim7, ((s32) this->fwork[48]) >> 1, D_i5_801BD218);
             for (i = 0; i < 19; i++) {
                 D_i5_801BC978[D_i5_801BAA50[i]] = D_i5_801BD218[D_i5_801BAA50[i]];
             }
+
             break;
 
         case 2:
-            Animation_GetFrameData(&aTiGorasTailAttackAnim, (s32) this->fwork[48] >> 1, D_i5_801BD218);
+            Animation_GetFrameData(&aTiGorasTailAttackAnim, ((s32) this->fwork[48]) >> 1, D_i5_801BD218);
             for (i = 0; i < 19; i++) {
                 D_i5_801BC978[D_i5_801BAA50[i]] = D_i5_801BD218[D_i5_801BAA50[i]];
             }
+
             break;
     }
 
-    if ((this->state >= 7) && (this->state <= 12) && ((this->fwork[9] > 0.0f) || (this->fwork[6] > 0.0f))) {
+    if (((this->state >= 7) && (this->state <= 12)) && ((this->fwork[9] > 0.0f) || (this->fwork[6] > 0.0f))) {
         if (this->state == 12) {
             if ((this->fwork[9] > 0.0f) && (this->fwork[6] > 0.0f)) {
                 Math_SmoothStepToF(&this->obj.pos.x, gPlayer[0].pos.x, 0.1f, 10.0f, 0.01f);
@@ -4364,17 +4355,12 @@ void Titania_80193DF0(TiGoras* this) {
 
                 D_i5_801BBEF4[8] = 48.0f;
                 D_i5_801BBEF4[9] = 48.0f;
-
                 this->fwork[35] = 1.0f;
-
                 D_i5_801BBEF0[13] = 1;
                 D_i5_801BBEF4[32] = 10.0f;
                 D_i5_801BBEF4[33] = 10.0f;
-
                 this->swork[1] = 6;
-
                 D_i5_801BBEF4[11] = D_i5_801B7738[this->swork[1]];
-
                 this->swork[31] = 0;
                 this->swork[30]++;
 
@@ -4386,14 +4372,13 @@ void Titania_80193DF0(TiGoras* this) {
             break;
 
         case 6:
-            this->fwork[47] = (f32) this->animFrame / (f32) (Animation_GetFrameCount(&aTiGorasAnim13) * 2);
-
-            if ((this->animFrame == 0) || (this->animFrame == 68) || (this->animFrame == 96) ||
+            this->fwork[47] = ((f32) this->animFrame) / ((f32) (Animation_GetFrameCount(&aTiGorasAnim13) * 2));
+            if ((((this->animFrame == 0) || (this->animFrame == 68)) || (this->animFrame == 96)) ||
                 (this->animFrame == 149)) {
                 AUDIO_PLAY_SFX(NA_SE_EN_APPEAR_SAND, this->sfxSource, 4);
             }
 
-            temp_f = gPlayer[0].trueZpos - this->obj.pos.z - 530.0f;
+            temp_f = (gPlayer[0].trueZpos - this->obj.pos.z) - 530.0f;
             if (temp_f < 0.0f) {
                 this->obj.pos.z += temp_f;
             }
@@ -4409,7 +4394,7 @@ void Titania_80193DF0(TiGoras* this) {
                 }
                 if (D_i5_801BBF00[i].unk_24 > 0) {
                     D_i5_801BBF00[i].unk_24--;
-                    if (!(D_i5_801BBF00[i].unk_24 & 1)) { // prefer == 0
+                    if (!(D_i5_801BBF00[i].unk_24 & 1)) {
                         Effect_TiDust_Spawn(this->obj.pos.x + D_i5_801BBF00[i].unk_00.pos.x,
                                             this->obj.pos.y + D_i5_801BBF00[i].unk_00.pos.y,
                                             this->obj.pos.z + D_i5_801BBF00[i].unk_00.pos.z, 7.0f, 160, 16, 0);
@@ -4423,8 +4408,8 @@ void Titania_80193DF0(TiGoras* this) {
             Animation_GetFrameData(&aTiGorasAnim13, this->animFrame >> 1, D_i5_801BC978);
             Math_SmoothStepToF(&this->fwork[0], 0.5f, 1.0f, 0.02f, 0.0f);
             Math_SmoothStepToVec3fArray(D_i5_801BC978, D_i5_801BCDC8, 1, 92, this->fwork[0], 360.0f, 0.01f);
-            this->animFrame++;
 
+            this->animFrame++;
             if (this->animFrame >= (Animation_GetFrameCount(&aTiGorasAnim13) * 2)) {
                 AUDIO_PLAY_SFX(NA_SE_EN_TIBOSS_AT_CRY, this->sfxSource, 4);
                 gPlayer[0].unk_19C = 0;
@@ -4452,7 +4437,6 @@ void Titania_80193DF0(TiGoras* this) {
                     }
                 }
             }
-
             if ((this->swork[10] > 0) && ((D_i5_801BBEF0[41] == 2) || (D_i5_801BBEF0[8] != 0))) {
                 for (i = 0; i < 9; i++) {
                     if (this->animFrame == D_i5_801B814C[i]) {
@@ -4503,23 +4487,28 @@ void Titania_80193DF0(TiGoras* this) {
             if ((this->animFrame == 0) && (this->swork[11] <= 0)) {
                 this->animFrame = 62;
             }
+
             if ((this->animFrame == 62) && (this->swork[12] <= 0)) {
                 this->animFrame = (Animation_GetFrameCount(&aTiGorasAnim9) * 2) - 1;
                 D_i5_801BBEF4[12] = 0.0f;
             }
+
             if (this->animFrame == 98) {
                 D_i5_801BBEF4[12] = 0.0f;
             }
+
             if ((this->animFrame == 22) || (this->animFrame == 80)) {
                 AUDIO_PLAY_SFX(NA_SE_EN_TIBOSS_AT_CRY, this->sfxSource, 4);
             }
+
             if (((this->animFrame >= 0) && (this->animFrame < 18)) ||
                 ((this->animFrame >= 62) && (this->animFrame < 80))) {
                 D_i5_801BBEF4[12] =
                     Math_Atan2F(gPlayer[0].pos.x - this->obj.pos.x, gPlayer[0].pos.z - this->obj.pos.z) * M_RTOD;
                 D_i5_801BBEF4[11] = __cosf(D_i5_801BBEF4[12] * M_DTOR) * 580.0f;
             }
-            if ((this->animFrame >= 37) && (this->animFrame < 41) && (this->swork[11] > 0)) {
+
+            if (((this->animFrame >= 37) && (this->animFrame < 41)) && (this->swork[11] > 0)) {
                 spD4.x = this->obj.pos.x + D_i5_801BBEF4[68];
                 spD4.y = 0.0f;
                 spD4.z = this->obj.pos.z + D_i5_801BBEF4[70];
@@ -4532,7 +4521,8 @@ void Titania_80193DF0(TiGoras* this) {
                     gCameraShake = 20;
                 }
             }
-            if ((this->animFrame >= 97) && (this->animFrame < 101) && (this->swork[12] > 0)) {
+
+            if (((this->animFrame >= 97) && (this->animFrame < 101)) && (this->swork[12] > 0)) {
                 spD4.x = this->obj.pos.x + D_i5_801BBEF4[71];
                 spD4.y = 0.0f;
                 spD4.z = this->obj.pos.z + D_i5_801BBEF4[73];
@@ -4579,14 +4569,13 @@ void Titania_80193DF0(TiGoras* this) {
             if (D_i5_801BBEF0[26] > 0) {
                 D_i5_801BBEF0[26]--;
             }
-
             if (D_i5_801BBEF0[16] > 0) {
                 D_i5_801BBEF0[16]--;
             }
-
             if (D_i5_801BBEF0[17] > 0) {
                 D_i5_801BBEF0[17]--;
             }
+
             if (this->animFrame == 0) {
                 AUDIO_PLAY_SFX(NA_SE_EN_BOSS_CHARGE, this->sfxSource, 4);
             }
@@ -4604,7 +4593,6 @@ void Titania_80193DF0(TiGoras* this) {
                 D_i5_801BBEF0[7] = 0;
             }
 
-            // pad = this->animFrame == 45;
             if (this->animFrame == 45) {
                 AUDIO_PLAY_SFX(NA_SE_EN_BOSS_BEAM0, this->sfxSource, 4);
                 this->swork[32] = 0;
@@ -4616,6 +4604,7 @@ void Titania_80193DF0(TiGoras* this) {
                 D_i5_801BBEF0[13] = 1;
                 D_i5_801BBEF4[32] = 1.0f;
                 D_i5_801BBEF4[33] = 1.0f;
+
                 for (i = 0; i < 4; i++) {
                     if (D_i5_801BBEF0[9 + i] == 0) {
                         for (j = 0; j < ARRAY_COUNT(gTexturedLines); j++) {
@@ -4628,6 +4617,7 @@ void Titania_80193DF0(TiGoras* this) {
                     }
                 }
             }
+
             if (this->animFrame == 130) {
                 for (i = 0; i < 4; i++) {
                     gTexturedLines[D_i5_801BBEF0[9 + i] - 1].mode = 0;
@@ -4639,6 +4629,7 @@ void Titania_80193DF0(TiGoras* this) {
                 this->fwork[41] = 0.0f;
                 this->fwork[42] = 0.0f;
             }
+
             if (this->animFrame == 53) {
                 this->swork[32] = 1;
             }
@@ -4659,6 +4650,7 @@ void Titania_80193DF0(TiGoras* this) {
                     this->fwork[46] = 1.0f;
                 }
             }
+
             if (this->animFrame == 51) {
                 D_i5_801BBEF4[32] = 360.0f;
                 D_i5_801BBEF4[33] = 10.0f;
@@ -4681,7 +4673,6 @@ void Titania_80193DF0(TiGoras* this) {
             } else {
                 this->fwork[35] = 0.0f;
             }
-
             if ((this->animFrame >= 45) && (this->animFrame < 47)) {
                 this->fwork[41] += 20.0f;
                 this->fwork[42] += 1050.0f;
@@ -4701,7 +4692,6 @@ void Titania_80193DF0(TiGoras* this) {
                 this->fwork[42] *= 0.5f;
                 this->fwork[41] *= 0.5f;
             }
-
             if (this->swork[24] != 0) {
                 Math_SmoothStepToF(&this->fwork[45], 0.0f, 0.8f, 2.5f, 0.01f);
                 if (this->fwork[43] == 0.0f) {
@@ -4730,7 +4720,6 @@ void Titania_80193DF0(TiGoras* this) {
 
         case 12:
             this->swork[33] = 1;
-
             if ((this->animFrame >= 38) && (this->animFrame < 141)) {
                 this->fwork[1] = ((this->animFrame - 38) * 360.0f) / 102.0f;
             }
@@ -4763,7 +4752,6 @@ void Titania_80193DF0(TiGoras* this) {
             }
 
             D_i5_801BBEF0[6] = 2;
-
             if (this->animFrame == 30) {
                 Audio_KillSfxBySourceAndId(this->sfxSource, NA_SE_EN_HEARTBEAT);
                 D_i5_801BBEF0[7] = 0;
@@ -4793,16 +4781,16 @@ void Titania_80193DF0(TiGoras* this) {
 
         case 1:
             this->fwork[48] += this->fwork[2];
-            if (Animation_GetFrameCount(&aTiGorasAnim7) * 2 <= this->fwork[48]) {
+            if ((Animation_GetFrameCount(&aTiGorasAnim7) * 2) <= this->fwork[48]) {
                 this->fwork[48] -= Animation_GetFrameCount(&aTiGorasAnim7) * 2;
             } else if (this->fwork[48] < 0.0f) {
-                this->fwork[48] = this->fwork[48] + (Animation_GetFrameCount(&aTiGorasAnim7) * 2 - 1.0f);
+                this->fwork[48] = this->fwork[48] + ((Animation_GetFrameCount(&aTiGorasAnim7) * 2) - 1.0f);
             }
             break;
 
         case 2:
             this->fwork[48] += 1.0f;
-            if (Animation_GetFrameCount(&aTiGorasTailAttackAnim) * 2 <= this->fwork[48]) {
+            if ((Animation_GetFrameCount(&aTiGorasTailAttackAnim) * 2) <= this->fwork[48]) {
                 if (this->state == 13) {
                     this->fwork[0] = 0.0f;
                     this->swork[34] = 1;
@@ -4825,11 +4813,9 @@ void Titania_80193DF0(TiGoras* this) {
         }
 
         this->swork[4]++;
-
         if (this->swork[37] & 0x18) {
             D_i5_801BBEF0[44]++;
         }
-
         D_i5_801BBEF0[42] = 0;
 
         pad2 = this->swork[1];
@@ -4843,7 +4829,7 @@ void Titania_80193DF0(TiGoras* this) {
                         }
                     }
 
-                    if ((pad != 4) && gTeamShields[TEAM_ID_PEPPY] > 0) {
+                    if ((pad != 4) && (gTeamShields[TEAM_ID_PEPPY] > 0)) {
                         Radio_PlayMessage(gMsg_ID_4095, RCID_PEPPY);
                     }
                     this->swork[37] &= ~2;
@@ -4852,7 +4838,7 @@ void Titania_80193DF0(TiGoras* this) {
 
             case 9:
                 if (this->swork[37] & 1) {
-                    if ((this->swork[29] != 0) && gTeamShields[TEAM_ID_FALCO] > 0) {
+                    if ((this->swork[29] != 0) && (gTeamShields[TEAM_ID_FALCO] > 0)) {
                         Radio_PlayMessage(gMsg_ID_4099, RCID_FALCO);
                     }
                     this->swork[37] &= ~1;
@@ -4878,7 +4864,8 @@ void Titania_80193DF0(TiGoras* this) {
                     this->swork[17 + i]++;
                     var_v1++;
                 } while (D_i5_801BAB0C[i][var_v1] == 0);
-                if (D_i5_801BAB0C[i][var_v1] == -1) {
+
+                if (D_i5_801BAB0C[i][var_v1] == (-1)) {
                     this->swork[9 + i] = -1;
                 } else {
                     this->swork[13 + i] = 0;
@@ -4905,14 +4892,14 @@ void Titania_80193DF0(TiGoras* this) {
         if ((this->fwork[15] <= 0.0f) && (this->fwork[9] > 0.0f)) {
             effect = Effect_Load(OBJ_EFFECT_394);
             if (effect != NULL) {
-                Matrix_RotateY(gCalcMatrix, this->obj.rot.y * M_DTOR, MTXF_NEW);
-                Matrix_MultVec3f(gCalcMatrix, (Vec3f*) &this->fwork[8], &spC8);
+                Matrix_RotateY(gCalcMatrix, this->obj.rot.y * M_DTOR, 0);
+                Matrix_MultVec3f(gCalcMatrix, (Vec3f*) (&this->fwork[8]), &spC8);
                 effect->obj.status = OBJ_ACTIVE;
-                effect->unk_78 = effect->unk_7A = 0;
+                effect->unk_78 = (effect->unk_7A = 0);
                 effect->obj.pos.x = this->obj.pos.x + spC8.x;
                 effect->obj.pos.y = this->obj.pos.y + 3.0f;
                 effect->obj.pos.z = this->obj.pos.z + spC8.z;
-                effect->obj.rot.y = this->fwork[49] + -44.0f;
+                effect->obj.rot.y = this->fwork[49] + (-44.0f);
                 effect->alpha = 53;
                 effect->info.cullDistance = 400.0f;
                 effect->info.unk_14 = -1;
@@ -4923,10 +4910,10 @@ void Titania_80193DF0(TiGoras* this) {
         if ((this->fwork[12] <= 0.0f) && (this->fwork[6] > 0.0f)) {
             effect = Effect_Load(OBJ_EFFECT_394);
             if (effect != NULL) {
-                Matrix_RotateY(gCalcMatrix, this->obj.rot.y * M_DTOR, MTXF_NEW);
-                Matrix_MultVec3f(gCalcMatrix, (Vec3f*) &this->fwork[5], &spC8);
+                Matrix_RotateY(gCalcMatrix, this->obj.rot.y * M_DTOR, 0);
+                Matrix_MultVec3f(gCalcMatrix, (Vec3f*) (&this->fwork[5]), &spC8);
                 effect->obj.status = OBJ_ACTIVE;
-                effect->unk_78 = effect->unk_7A = 0;
+                effect->unk_78 = (effect->unk_7A = 0);
                 effect->obj.pos.x = this->obj.pos.x + spC8.x;
                 effect->obj.pos.y = this->obj.pos.y + 3.0f;
                 effect->obj.pos.z = this->obj.pos.z + spC8.z;
@@ -4944,6 +4931,7 @@ void Titania_80193DF0(TiGoras* this) {
         this->swork[39] = 4;
         gCameraShake = 7;
     }
+
     if (this->state >= 7) {
         if (((this->fwork[15] > 0.0f) && (this->fwork[9] <= 0.0f)) ||
             ((this->fwork[12] > 0.0f) && (this->fwork[6] <= 0.0f))) {
@@ -4959,18 +4947,14 @@ void Titania_80193DF0(TiGoras* this) {
         this->fwork[12] = this->fwork[6];
         this->fwork[15] = this->fwork[9];
     }
+
     if ((this->state >= 7) && (D_i5_801B7738[this->state] > 0.0f)) {
-        // Can use temp here
         temp_f = Math_SmoothStepToF(&this->obj.pos.z, gPlayer[0].pos.z - D_i5_801BBEF4[11], 0.1f, 14.0f, 0.001f);
-        this->fwork[2] = (((-temp_f / 14.0f) * 1.2f) + 1.0f) * 2.0f;
+        this->fwork[2] = ((((-temp_f) / 14.0f) * 1.2f) + 1.0f) * 2.0f;
         this->vel.z = -12.0f;
     }
     this->dmgType = DMG_NONE;
 }
-#else
-#pragma GLOBAL_ASM("asm/us/rev1/nonmatchings/overlays/ovl_i5/fox_ti/Titania_80193DF0.s")
-void Titania_80193DF0(Boss*);
-#endif
 
 s16 D_i5_801B8D54[4] = { 30, 35, 60, 70 };
 
