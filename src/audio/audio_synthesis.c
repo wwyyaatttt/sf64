@@ -165,211 +165,207 @@ void AudioSynth_InverseDiscreteCosineTransform(f32* buffer0, f32* buffer1, s32 l
     }
 }
 
-// https://decomp.me/scratch/8eyVg
-#ifdef NON_MATCHING
-void AudioSynth_HartleyTransform(f32* arg0, s32 arg1, f32* arg2) {
-    s32 length;
-    s32 spD0;
-    s32 spCC;
-    s32 spC8;
-    s32 var_a0;
-    s32 spC0;
-    s32 spBC;
-    s32 pad;
-    s32 spB4;
-    s32 sp58;
-    s32 sp50;
-    s32 spA8;
-    f32 var_fs0;
-    f32 temp_fa0;
-    f32 temp_fv1;
-    f32* temp_a0;
-    f32* temp_a1;
-    f32* temp_a2;
-    f32* temp_a3;
-    f32* temp_b0;
-    f32* temp_b1;
-    f32* temp_b2;
-    f32* temp_b3;
-    f32* var_s0;
-    f32* var_s1;
-    f32* var_s2;
-    f32* var_s3;
+void AudioSynth_HartleyTransform(f32* x, s32 m, f32* tab) {
+    s32 n;
+    s32 im, i, j;
+    f32 b;
+    s32 pont;
+    s32 n2, n4, n8, n_tab;
+    s32 is, id;
+    f32 *px, *py, *pw, *pz;
+    f32 *px1, *py1, *pw1, *pz1;
+    f32 *pcc1, *pcc3, *pss1, *pss3;
+    f32 a, a3;
+    f32 temp;
 
-    length = 1 << arg1;
-    spBC = length * 2;
-    sp58 = (length / 8) - 1;
-    switch (length) {
+    n = 1 << m;
+    n2 = n << 1;
+    n_tab = n / 8 - 1;
+
+    switch (n) {
         case 1:
             break;
         case 2:
-            temp_fa0 = arg0[1];
-            temp_fv1 = arg0[0];
-
-            arg0[0] = (temp_fa0 + temp_fv1) * 0.707107f;
-            arg0[1] = (temp_fv1 - temp_fa0) * 0.707107f;
+            temp = (x[0] + x[1]) * 0.707107f;
+            x[1] = (x[0] - x[1]) * 0.707107f;
+            x[0] = temp;
             break;
+
         case 4:
-            temp_fv1 = arg0[0];
-            arg0[0] = (arg0[2] + temp_fv1) / 2.0f;
-            arg0[2] = (temp_fv1 - arg0[2]) / 2.0f;
+            temp = (x[0] + x[2]) / 2.0f;
+            x[2] = (x[0] - x[2]) / 2.0f;
+            x[0] = temp;
 
-            temp_fa0 = arg0[1];
-            arg0[1] = (arg0[3] + temp_fa0) / 2.0f;
-            arg0[3] = (temp_fa0 - arg0[3]) / 2.0f;
+            temp = (x[1] + x[3]) / 2.0f;
+            x[3] = (x[1] - x[3]) / 2.0f;
+            x[1] = temp;
 
-            temp_fv1 = arg0[0];
-            temp_fa0 = arg0[1];
-            arg0[0] = arg0[1] + temp_fv1;
-            arg0[1] = arg0[3] + arg0[2];
-            arg0[3] = arg0[2] - arg0[3];
-            arg0[2] = temp_fv1 - temp_fa0;
+            temp = x[0] - temp;
+            x[0] = x[0] + x[1];
+            x[1] = x[2] + x[3];
+            x[3] = x[2] - x[3];
+            x[2] = temp;
             break;
+
         default:
-            if (length != (s32) *arg2) {
-                *arg2 = length;
+            if (n != (s32) *tab) {
+                *tab = n;
+                pcc1 = tab + 1;
+                pss1 = pcc1 + n_tab;
+                pcc3 = pss1 + n_tab;
+                pss3 = pcc3 + n_tab;
+                a = 6.283186f / n;
 
-                var_s0 = &arg2[1];
-                var_s1 = &var_s0[sp58];
-                var_s2 = &var_s1[sp58];
-                var_s3 = &var_s2[sp58];
-
-                var_fs0 = 6.283186f / length;
-                for (spCC = 0; spCC < sp58; spCC++) {
-                    *var_s0++ = __cosf(var_fs0);
-                    *var_s1++ = __sinf(var_fs0);
-                    *var_s2++ = __cosf(3.0f * var_fs0);
-                    *var_s3++ = __sinf(3.0f * var_fs0);
-                    var_fs0 += 6.283186f / length;
+                for (j = 0; j < n_tab; j++) {
+                    *pcc1++ = __cosf(a);
+                    *pss1++ = __sinf(a);
+                    *pcc3++ = __cosf(3.0f * a);
+                    *pss3++ = __sinf(3.0f * a);
+                    a += 6.283186f / n;
                 }
             }
-            spC0 = 1;
-            for (spD0 = 0; spD0 < arg1 - 1; spD0++) {
-                spA8 = spBC;
-                spBC >>= 1;
-                spB4 = spBC >> 3;
-                sp50 = spBC >> 2;
-                var_a0 = 1;
+
+            pont = 1;
+            for (im = 0; im < m - 1; im++) {
+                is = 1;
+                id = n2;
+                n2 >>= 1;
+                n4 = n2 >> 2;
+                n8 = n2 >> 3;
                 do {
-                    for (spCC = var_a0 - 1; spCC < length; spCC += spA8) {
-                        // if (0) { }
-                        temp_a0 = arg0 + spCC;
-                        temp_a1 = temp_a0 + sp50;
-                        temp_a2 = temp_a1 + sp50;
-                        temp_a3 = temp_a2 + sp50;
+                    for (i = is - 1; i < n; i = i + id) {
+                        px = x + i;
+                        py = px + n4;
+                        pw = py + n4;
+                        pz = pw + n4;
 
-                        D_80146D54 = *temp_a0;
-                        *temp_a0 = *temp_a2 + D_80146D54;
-                        D_80146D58 = *temp_a1;
-                        *temp_a1 = *temp_a1 + *temp_a3;
-                        D_80146D5C = *temp_a2;
-                        *temp_a2 = D_80146D54 - D_80146D5C + D_80146D58 - *temp_a3;
-                        *temp_a3 = D_80146D54 - D_80146D5C - D_80146D58 + *temp_a3;
-                        if (sp50 > 1) {
-                            temp_a0 = arg0 + spCC + spB4;
-                            temp_a1 = temp_a0 + sp50;
-                            temp_a2 = temp_a1 + sp50;
-                            temp_a3 = temp_a2 + sp50;
+                        D_80146D54 = *px;
+                        *px = *pw + D_80146D54;
+                        D_80146D58 = *py;
+                        *py = *py + *pz;
+                        D_80146D5C = *pw;
 
-                            D_80146D54 = *temp_a0;
-                            *temp_a0 = *temp_a2 + D_80146D54;
-                            D_80146D58 = *temp_a1;
-                            *temp_a1 = *temp_a3 + D_80146D58;
-                            *temp_a2 = (D_80146D54 - *temp_a2) * 1.414214f;
-                            *temp_a3 = (D_80146D58 - *temp_a3) * 1.414214f;
+                        *pw = ((D_80146D54 - D_80146D5C) + D_80146D58) - *pz;
+                        *pz = ((D_80146D54 - D_80146D5C) - D_80146D58) + *pz;
 
-                            var_s0 = &arg2[spC0];
-                            var_s1 = &var_s0[sp58];
-                            var_s2 = &var_s1[sp58];
-                            var_s3 = &var_s2[sp58];
-                            for (spC8 = 1; spC8 < spB4; spC8++) {
-                                temp_a0 = arg0 + spCC + spC8;
-                                temp_a1 = temp_a0 + sp50;
-                                temp_a2 = temp_a1 + sp50;
-                                temp_a3 = temp_a2 + sp50;
+                        if (n4 > 1) {
+                            px = px + n8;
+                            py = px + n4;
+                            pw = py + n4;
+                            pz = pw + n4;
 
-                                temp_b0 = arg0 + spCC + sp50 - spC8;
-                                temp_b1 = temp_b0 + sp50;
-                                temp_b2 = temp_b1 + sp50;
-                                temp_b3 = temp_b2 + sp50;
+                            D_80146D54 = *px;
+                            *px = *pw + D_80146D54;
 
-                                D_80146D54 = *temp_a0;
-                                D_80146D58 = *temp_a1;
-                                D_80146D5C = *temp_a2;
-                                D_80146D60 = *temp_a3;
+                            D_80146D58 = *py;
+                            *py = *pz + D_80146D58;
 
-                                D_80146D64 = *temp_b0;
-                                D_80146D68 = *temp_b1;
-                                D_80146D6C = *temp_b2;
-                                D_80146D70 = *temp_b3;
+                            *pw = (D_80146D54 - *pw) * 1.414214f;
+                            *pz = (D_80146D58 - *pz) * 1.414214f;
 
-                                *temp_a0 = D_80146D54 + D_80146D5C;
-                                *temp_a1 = D_80146D58 + D_80146D60;
-                                *temp_a2 = ((D_80146D54 - D_80146D5C + D_80146D64 - D_80146D6C) * *var_s0) +
-                                           ((D_80146D60 - D_80146D58 + D_80146D68 - D_80146D70) * *var_s1);
-                                *temp_a3 = ((D_80146D54 - D_80146D5C - D_80146D64 + D_80146D6C) * *var_s2) -
-                                           ((D_80146D60 - D_80146D58 - D_80146D68 + D_80146D70) * *var_s3);
-                                *temp_b0 = D_80146D64 + D_80146D6C;
-                                *temp_b1 = D_80146D68 + D_80146D70;
-                                *temp_b2 = ((D_80146D54 - D_80146D5C + D_80146D64 - D_80146D6C) * *var_s1) -
-                                           ((D_80146D60 - D_80146D58 + D_80146D68 - D_80146D70) * *var_s0);
-                                *temp_b3 = ((D_80146D54 - D_80146D5C - D_80146D64 + D_80146D6C) * *var_s3) +
-                                           ((D_80146D60 - D_80146D58 - D_80146D68 + D_80146D70) * *var_s2);
-                                var_s0 += spC0;
-                                var_s1 += spC0;
-                                var_s2 += spC0;
-                                var_s3 += spC0;
+                            pcc1 = tab + pont;
+                            pss1 = pcc1 + n_tab;
+                            pcc3 = pss1 + n_tab;
+                            pss3 = pcc3 + n_tab;
+
+                            for (j = 1; j < n8; j++) {
+                                px = x + i + j;
+                                py = px + n4;
+                                pw = py + n4;
+                                pz = pw + n4;
+
+                                D_80146D54 = *px;
+                                D_80146D58 = *py;
+                                D_80146D5C = *pw;
+                                D_80146D60 = *pz;
+
+                                px1 = x + i + n4 - j;
+                                py1 = px1 + n4;
+                                pw1 = py1 + n4;
+                                pz1 = pw1 + n4;
+
+                                D_80146D64 = *px1;
+                                D_80146D68 = *py1;
+                                D_80146D6C = *pw1;
+                                D_80146D70 = *pz1;
+
+                                *px = D_80146D54 + D_80146D5C;
+                                *py = D_80146D58 + D_80146D60;
+
+                                *pw = ((D_80146D54 - D_80146D5C + D_80146D64 - D_80146D6C) * *pcc1) +
+                                      ((D_80146D60 - D_80146D58 + D_80146D68 - D_80146D70) * *pss1);
+
+                                *pz = ((D_80146D54 - D_80146D5C - D_80146D64 + D_80146D6C) * *pcc3) -
+                                      ((D_80146D60 - D_80146D58 - D_80146D68 + D_80146D70) * *pss3);
+
+                                *px1 = D_80146D64 + D_80146D6C;
+                                *py1 = D_80146D68 + D_80146D70;
+
+                                *pw1 = ((D_80146D54 - D_80146D5C + D_80146D64 - D_80146D6C) * *pss1) -
+                                       ((D_80146D60 - D_80146D58 + D_80146D68 - D_80146D70) * *pcc1);
+
+                                *pz1 = ((D_80146D54 - D_80146D5C - D_80146D64 + D_80146D6C) * *pss3) +
+                                       ((D_80146D60 - D_80146D58 - D_80146D68 + D_80146D70) * *pcc3);
+
+                                pcc1 += pont;
+                                pcc3 += pont;
+                                pss1 += pont;
+                                pss3 += pont;
                             }
                         }
                     }
-                    var_a0 = ((spA8 * 2) - spBC) + 1;
-                    spA8 *= 4;
-                } while (var_a0 < length);
-                spC0 = spC0 * 2;
-                temp_a0 = arg0;
-                for (spC8 = 0; spC8 < length; spC8++, temp_a0++) {
-                    *temp_a0 /= 1.414214f;
+                    is = 2 * id - n2 + 1;
+                    id = 4 * id;
+                } while (is < n);
+
+                pont = 2 * pont;
+
+                px = x;
+                for (i = 0; i < n; i++) {
+                    *px /= 1.414214f;
+                    px++;
                 }
             }
-            var_a0 = 1;
-            spA8 = 4;
 
+            is = 1;
+            id = 4;
             do {
-                for (spCC = var_a0 - 1; spCC < length; spCC += spA8) {
-                    D_80146D54 = arg0[spCC];
-                    arg0[spCC] = arg0[spCC + 1] + D_80146D54;
-                    arg0[spCC + 1] = D_80146D54 - arg0[spCC + 1];
+                for (i = is - 1; i < n; i += id) {
+                    px = x + i;
+                    D_80146D54 = *px;
+                    *px = D_80146D54 + *(px + 1);
+                    *(px + 1) = D_80146D54 - *(px + 1);
                 }
-                var_a0 = (spA8 * 2) - 1;
-                spA8 *= 4;
-            } while (var_a0 < length);
-            temp_a0 = arg0;
-            for (spC8 = 0; spC8 < length; spC8++) {
-                *temp_a0++ /= 1.414214f;
-            }
-            spB4 = 1;
-            temp_a0 = arg0;
+                is = 2 * id - 1;
+                id = 4 * id;
+            } while (is < n);
 
-            for (spC8 = 1; spC8 < length; spC8++) {
-                if (spC8 < spB4) {
-                    D_80146D54 = arg0[spB4 - 1];
-                    arg0[spB4 - 1] = *temp_a0;
-                    *temp_a0 = D_80146D54;
+            px = x;
+            for (i = 0; i < n; i++) {
+                *px /= 1.414214f;
+                px++;
+            }
+
+            j = 1;
+            pw = x;
+            for (i = 1; i < n; i++) {
+                pont = n >> 1;
+                if (i < j) {
+                    py = x + j - 1;
+                    D_80146D54 = *py;
+                    *py = *pw;
+                    *pw = D_80146D54;
                 }
-                temp_a0++;
-                spC0 = length >> 1;
-                while (spC0 < spB4) {
-                    spB4 -= spC0;
-                    spC0 >>= 1;
+                pw++;
+                while (pont < j) {
+                    j -= pont;
+                    pont >>= 1;
                 }
-                spB4 += spC0;
+                j += pont;
             }
             break;
     }
 }
-#else
-#pragma GLOBAL_ASM("asm/us/rev1/nonmatchings/audio/audio_synthesis/AudioSynth_HartleyTransform.s")
-#endif
 
 void AudioSynth_DCTF_ProcessBlockFreqDomain(s16** sampleBlockAddr) {
     s16* bufPtr;
