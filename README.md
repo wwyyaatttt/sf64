@@ -1,27 +1,13 @@
 ### Progress:
 
 <p align="left">
-    <a href="" alt="SF64_Total_NonMatchingFunctions">
-        <img src="https://img.shields.io/badge/Functions%20decompiled:%202951%2F2951-100%25-Yellow" /></a>
-</p>
-<p align="left">
     <a href="" alt="SF64_Total_MatchingFunctions">
-        <img src="https://img.shields.io/badge/Matching%20Functions:%202948%2F2951-99.90%25-yellow" /></a>
+        <img src="https://img.shields.io/badge/Matching%20Decompiled%20Functions:%202951%2F2951-100%25-Green" /></a>
 </p>
-
-Functions left to match:
-
-[AudioSynth_HartleyTransform](https://decomp.me/scratch/7N88x)
-
-[Aquas_AqBacoon_Update](https://decomp.me/scratch/cyJAV)
-
-[Titania_80193DF0](https://decomp.me/scratch/aOI9e)
-
-[![Discord Invitation](https://discordapp.com/api/guilds/1190102597521133700/widget.png?style=banner2 'Starfox 64')](https://discord.gg/tuwdmuTTqc)
 
 # Starfox 64 (US) REV 1.1
 
-This is a WIP **matching decompilation** of ***Starfox 64***. The purpose of the project is to recreate a source code base for the game from scratch, using information found inside the game along with static and/or dynamic analysis.
+This is a complete **matching decompilation** of ***Starfox 64***. The purpose of the project is to recreate a source code base for the game from scratch, using information found inside the game along with static and/or dynamic analysis.
 
 ##### Note: This is NOT a PC PORT.
 
