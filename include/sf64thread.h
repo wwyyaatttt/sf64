@@ -203,7 +203,7 @@ extern OSThread gAudioThread; //8013B1F0
 #define EVENT_MESG_VI 3
 #define EVENT_MESG_PRENMI 4
 
-typedef enum {
+typedef enum ThreadID {
     /* 0 */ THREAD_ID_SYSTEM,
     /* 1 */ THREAD_ID_IDLE,
     /* 2 */ THREAD_ID_FAULT,

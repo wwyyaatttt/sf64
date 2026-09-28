@@ -196,7 +196,7 @@ extern u32  osPiGetStatus(void);
 extern s32  osPiGetDeviceType(void);
 extern s32  osPiWriteIo(u32, u32);
 extern s32  osPiReadIo(u32, u32 *);
-extern s32  osPiStartDma(OSIoMesg *, s32, s32, u32, void *, u32, OSMesgQueue *);
+extern s32  osPiStartDma(OSIoMesg* mb, s32 pri, s32 rw, u32 devAddr, void* dramAddr, u32 size, OSMesgQueue* piHandle);
 extern void osCreatePiManager(OSPri, OSMesgQueue *, OSMesg *, s32);
 
 /* Enhanced PI interface */

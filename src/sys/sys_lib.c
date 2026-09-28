@@ -4,6 +4,7 @@ s32 Lib_vsPrintf(char* dst, const char* fmt, va_list args) {
     return vsprintf(dst, fmt, args);
 }
 
+// Unused
 void Lib_vTable(s32 index, void (**table)(s32, s32), s32 arg0, s32 arg1) {
     void (*func)(s32, s32) = table[index];
 
@@ -105,14 +106,14 @@ void Lib_DmaRead(void* src, void* dst, ptrdiff_t size) {
     osInvalICache(dst, size);
     osInvalDCache(dst, size);
     while (size > 0x100) {
-        osPiStartDma(&gDmaIOMsg, 0, 0, (uintptr_t) src, dst, 0x100, &gDmaMesgQueue);
+        osPiStartDma(&gDmaIOMsg, OS_MESG_PRI_NORMAL, OS_READ, (uintptr_t) src, dst, 0x100, &gDmaMesgQueue);
         size -= 0x100;
         src = (void*) ((uintptr_t) src + 0x100);
         dst = (void*) ((uintptr_t) dst + 0x100);
         MQ_WAIT_FOR_MESG(&gDmaMesgQueue, NULL);
     }
     if (size != 0) {
-        osPiStartDma(&gDmaIOMsg, 0, 0, (uintptr_t) src, dst, size, &gDmaMesgQueue);
+        osPiStartDma(&gDmaIOMsg, OS_MESG_PRI_NORMAL, OS_READ, (uintptr_t) src, dst, size, &gDmaMesgQueue);
         MQ_WAIT_FOR_MESG(&gDmaMesgQueue, NULL);
     }
 }
