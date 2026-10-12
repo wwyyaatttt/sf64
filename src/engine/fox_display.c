@@ -558,6 +558,8 @@ bool Display_ArwingOverrideLimbDraw(s32 limbIndex, Gfx** gfxPtr, Vec3f* pos, Vec
     return false;
 }
 
+static Vec3f* sArwingSkelJoints = NULL; // joints of the Arwing being drawn (co-op: P2 has its own)
+
 void Display_Arwing_Skel(ArwingInfo* arwing) {
     Vec3f frameTable[30];
     s32 drawFace;
@@ -570,8 +572,8 @@ void Display_Arwing_Skel(ArwingInfo* arwing) {
     }
 
     if (gGameState == GSTATE_PLAY) {
-        Animation_DrawSkeleton(1, aAwArwingSkel, gPlayer[0].jointTable, Display_ArwingOverrideLimbDraw, NULL, arwing,
-                               &gIdentityMatrix);
+        Animation_DrawSkeleton(1, aAwArwingSkel, (sArwingSkelJoints != NULL) ? sArwingSkelJoints : gPlayer[0].jointTable,
+                               Display_ArwingOverrideLimbDraw, NULL, arwing, &gIdentityMatrix);
     } else {
         if (gGameState == GSTATE_MENU) {
             Animation_GetFrameData(&aAwWingsHalfOpenAnim, 0, frameTable);
@@ -703,7 +705,9 @@ void Display_Arwing(Player* player, s32 reflectY) {
             }
             D_display_800CA22C = true;
             gReflectY = reflectY;
+            sArwingSkelJoints = player->jointTable;
             Display_Arwing_Skel(&player->arwing);
+            sArwingSkelJoints = NULL;
         }
     }
 }
@@ -1789,7 +1793,7 @@ void Display_Update(void) {
     Lights_SetOneLight(&gMasterDisp, gLight2x, gLight2y, gLight2z, gLight2R, gLight2G, gLight2B, gAmbientR, gAmbientG,
                        gAmbientB);
 
-    for (i = 0, player = &gPlayer[0]; i < gCamCount; i++, player++) {
+    for (i = 0, player = &gPlayer[0]; i < gNumPlayers; i++, player++) {
         playerPos.x = player->pos.x;
         playerPos.y = player->pos.y;
         playerPos.z = player->trueZpos;
@@ -1803,7 +1807,7 @@ void Display_Update(void) {
                            gAmbientG, gAmbientB);
         Matrix_Push(&gGfxMatrix);
         Matrix_Scale(gGfxMatrix, 1.0f, -1.0f, 1.0f, MTXF_APPLY);
-        for (i = 0, player = &gPlayer[0]; i < gCamCount; i++, player++) {
+        for (i = 0, player = &gPlayer[0]; i < gNumPlayers; i++, player++) {
             playerPos.x = player->pos.x;
             playerPos.y = player->pos.y;
             playerPos.z = player->trueZpos;

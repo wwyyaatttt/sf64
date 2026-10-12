@@ -5,6 +5,61 @@
  */
 
 #include "global.h"
+#include "mods.h"
+
+#if MODS_COOP == 1
+/* Family Edition co-op: shots and hazards that hurt Fox also hurt player 2 while P2 is flying.
+ * Enemies still aim at Fox; P2 is only hit by stray fire. */
+static bool Coop_P2Flying(void) {
+    return (gNumPlayers == 2) && !gVersusMode && (gPlayer[1].state == PLAYERSTATE_ACTIVE);
+}
+
+static void Coop_CheckP2Collision(Effect* effect, f32 scale) {
+    if (Coop_P2Flying() && (effect->obj.status == OBJ_ACTIVE)) {
+        Effect_CheckPlayerCollision(&gPlayer[1], effect, scale);
+    }
+}
+
+/* Same rules as Fox's block in Effect_EnemyShot_Update: barrel roll deflects, otherwise damage + knockback. */
+static void Coop_EnemyShotVsP2(Effect* this) {
+    Player* p = &gPlayer[1];
+    f32 r = 0.0f;
+    Vec3f src;
+    Vec3f dst;
+
+    if (!Coop_P2Flying() || (this->obj.status != OBJ_ACTIVE)) {
+        return;
+    }
+    if (p->barrelRollAlpha != 0) {
+        r = 100.0f;
+    }
+    if ((fabsf(p->trueZpos - this->obj.pos.z) < (50.0f + r)) && (fabsf(p->pos.x - this->obj.pos.x) < (30.0f + r)) &&
+        (fabsf(p->pos.y - this->obj.pos.y) < (30.0f + r))) {
+        if (p->barrelRollAlpha != 0) {
+            this->obj.rot.y = 90.0f;
+            this->obj.rot.x = RAND_FLOAT(360.0f);
+            Matrix_RotateY(gCalcMatrix, this->obj.rot.y * M_DTOR, MTXF_NEW);
+            Matrix_RotateX(gCalcMatrix, this->obj.rot.x * M_DTOR, MTXF_APPLY);
+            src.x = 0.0f;
+            src.y = 0.0f;
+            src.z = 100.0f;
+            Matrix_MultVec3f(gCalcMatrix, &src, &dst);
+            this->vel.x = dst.x;
+            this->vel.y = dst.y;
+            this->vel.z = dst.z;
+            p->deflectCount++;
+            AUDIO_PLAY_SFX(NA_SE_ROLLING_REFLECT, this->sfxSource, 0);
+        } else if (p->mercyTimer == 0) {
+            Player_ApplyDamage(p, 0, this->info.damage);
+            p->knockback.x = (this->vel.x < 0.0f) ? -20.0f : 20.0f;
+            if (gCurrentLevel != LEVEL_MACBETH) {
+                p->knockback.y = (this->vel.y < 0.0f) ? -20.0f : 20.0f;
+            }
+            Object_Kill(&this->obj, this->sfxSource);
+        }
+    }
+}
+#endif
 #include "assets/ast_blue_marine.h"
 #include "assets/ast_arwing.h"
 #include "assets/ast_bg_space.h"
@@ -1371,6 +1426,9 @@ void Effect_PinkExplosion_Update(EffectPinkExplosion* this) {
         Object_Kill(&this->obj, this->sfxSource);
     }
     Effect_CheckPlayerCollision(&gPlayer[0], this, this->scale2 * 20.0f);
+#if MODS_COOP == 1
+    Coop_CheckP2Collision(this, this->scale2 * 20.0f);
+#endif
 }
 
 void Effect_Effect364_Setup(Effect364* this, f32 xPos, f32 yPos, f32 zPos, f32 scale2) {
@@ -2898,6 +2956,9 @@ void Effect_EnemyShot_Update(Effect* this) {
         Object_Kill(&this->obj, this->sfxSource);
         return;
     }
+#if MODS_COOP == 1
+    Coop_EnemyShotVsP2(this);
+#endif
 
     if (gPlayer[0].barrelRollAlpha != 0) {
         var_fa0 = 100.0f;
@@ -2993,6 +3054,9 @@ void Effect_EffectGrangaPlasmaShot_Update(EffectGrangaPlasmaShot* this) {
         this->unk_4A = 50;
     }
     Effect_CheckPlayerCollision(&gPlayer[0], this, 50.0f);
+#if MODS_COOP == 1
+    Coop_CheckP2Collision(this, 50.0f);
+#endif
 }
 
 void Effect_Effect398_Update(Effect398* this) {
@@ -3033,6 +3097,9 @@ void Effect_Effect398_Update(Effect398* this) {
                 return;
             }
 
+#if MODS_COOP == 1
+            Coop_EnemyShotVsP2(this);
+#endif
             if (gPlayer[0].barrelRollAlpha != 0) {
                 var_fa0 = 100.0f;
             }
@@ -3095,6 +3162,9 @@ void Effect_Effect398_Update(Effect398* this) {
     }
 
     Effect_CheckPlayerCollision(&gPlayer[0], this, 50.0f);
+#if MODS_COOP == 1
+    Coop_CheckP2Collision(this, 50.0f);
+#endif
 }
 
 void Effect_Effect398_Draw(Effect398* this) {
@@ -3892,6 +3962,9 @@ void Effect_Effect395_Update(Effect395* this) {
     }
     if ((this->state < 4) && (this->state != 1)) {
         Effect_CheckPlayerCollision(&gPlayer[0], this, sp84);
+#if MODS_COOP == 1
+        Coop_CheckP2Collision(this, sp84);
+#endif
     }
 }
 
@@ -4228,6 +4301,9 @@ void Effect_OrbRing_Update(EffectOrbRing* this) {
         this->timer_50 = 50;
     }
     Effect_CheckPlayerCollision(&gPlayer[0], this, 100.0f);
+#if MODS_COOP == 1
+    Coop_CheckP2Collision(this, 100.0f);
+#endif
 }
 
 // RGB Values. Used like an array of [8][3], but only matches this way.

@@ -618,9 +618,15 @@ void Game_Update(void) {
 #if MODS_SPAWNER == 1
         Spawner();
 #endif
+#if MODS_COOP_DEBUG == 1
+        Coop_DrawDebug();
+#endif
     }
 }
 
+#if MODS_COOP_DEBUG == 1
+#include "../mods/coopdebug.c"
+#endif
 #if MODS_FPS_COUNTER == 1
 #include "../mods/fpscounter.c"
 #endif

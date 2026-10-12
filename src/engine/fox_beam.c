@@ -1,4 +1,18 @@
 #include "global.h"
+#include "mods.h"
+
+#if MODS_COOP == 1
+/* Family Edition co-op: player 2's hits count for the team (as Fox's), not as Falco's (dmgSource 2). */
+static s32 Coop_ShotCredit(PlayerShot* shot) {
+    if ((gNumPlayers == 2) && !gVersusMode && (shot->sourceId == 1)) {
+        return AI360_FOX + 1;
+    }
+    return shot->sourceId + 1;
+}
+#define SHOT_CREDIT(shot) Coop_ShotCredit(shot)
+#else
+#define SHOT_CREDIT(shot) ((shot)->sourceId + 1)
+#endif
 #include "assets/ast_landmaster.h"
 #include "assets/ast_aquas.h"
 #include "assets/ast_great_fox.h"
@@ -695,7 +709,7 @@ void PlayerShot_ApplyDamageToActor(PlayerShot* shot, Actor* actor, s32 hitIndex)
             actor->lockOnTimers[shot->sourceId] = 0;
         }
     }
-    actor->dmgSource = shot->sourceId + 1;
+    actor->dmgSource = SHOT_CREDIT(shot);
     actor->hitPos.x = shot->obj.pos.x;
     actor->hitPos.y = shot->obj.pos.y;
     actor->hitPos.z = shot->obj.pos.z;
@@ -837,6 +851,11 @@ void PlayerShot_CollisionCheck(PlayerShot* shot) {
         }
         if (gLevelMode == LEVELMODE_ALL_RANGE) {
             for (i = 0, player = gPlayer; i < gCamCount; i++, player++) {
+#if MODS_COOP == 1
+                if ((gNumPlayers == 2) && !gVersusMode) {
+                    continue; // no friendly fire between co-op players
+                }
+#endif
                 test.x = 50.0f;
                 if (gVersusMode && (shot->sourceId < 4) &&
                     ((gLaserStrength[shot->sourceId] != LASERS_SINGLE) || (shot->obj.id == PLAYERSHOT_LOCK_ON))) {
@@ -1973,14 +1992,14 @@ void PlayerShot_ApplyExplosionDamage(PlayerShot* shot, s32 damage) {
                     (actor->obj.id == OBJ_ACTOR_CO_MOLE_MISSILE)) {
                     actor->dmgType = DMG_EXPLOSION;
                     actor->dmgPart = 0;
-                    actor->dmgSource = shot->sourceId + 1;
+                    actor->dmgSource = SHOT_CREDIT(shot);
                     actor->damage = damage;
 
                     if (actor->info.bonus != 0) {
                         shot->bonus++;
                     }
                 } else if ((actor->obj.id == OBJ_ACTOR_EVENT) && (actor->scale >= 0.5f) && (damage > 30)) {
-                    actor->dmgSource = shot->sourceId + 1;
+                    actor->dmgSource = SHOT_CREDIT(shot);
                     actor->vel.x = dx * 0.03f;
                     actor->vel.y = dy * 0.03f;
                     actor->vel.z = dz * 0.03f;
@@ -1995,7 +2014,7 @@ void PlayerShot_ApplyExplosionDamage(PlayerShot* shot, s32 damage) {
                 } else {
                     actor->dmgType = DMG_EXPLOSION;
                     actor->dmgPart = 0;
-                    actor->dmgSource = shot->sourceId + 1;
+                    actor->dmgSource = SHOT_CREDIT(shot);
                     actor->damage = damage;
                     if (actor->info.bonus != 0) {
                         shot->bonus++;
@@ -2095,6 +2114,15 @@ void PlayerShot_UpdateBomb(PlayerShot* shot) {
                         break;
                     }
                 } else {
+#if MODS_COOP == 1
+                    if ((gNumPlayers == 2) && (shot->sourceId == 1)) { // P2's bomb: P2's B detonates it
+                        if ((Coop_P2Controller() >= 0) &&
+                            (gControllerPress[Coop_P2Controller()].button & gBombButton[shot->sourceId])) {
+                            PlayerShot_ExplodeBomb(shot);
+                            break;
+                        }
+                    } else
+#endif
                     if (gControllerPress[gMainController].button & gBombButton[shot->sourceId]) {
                         PlayerShot_ExplodeBomb(shot);
                         break;

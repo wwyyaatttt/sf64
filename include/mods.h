@@ -93,6 +93,17 @@
 #define MODS_COPILOT 1
 #define MODS_KID_ASSIST 1
 
+/**
+ * Family Edition co-op: press START on a second controller during a level and player 2 flies
+ * their own Arwing on the same screen. Player 2 can't lose lives or pause; when shot down they
+ * respawn beside Fox. Arwing levels only for now (not Titania, Macbeth, Aquas, Training, Versus).
+ */
+#define MODS_COOP 1
+#define MODS_COOP_DEBUG 0 // on-screen player state readout (test builds)
+#if MODS_COOP_DEBUG == 1
+void Coop_DrawDebug(void);
+#endif
+
 /* ************************* */
 
 #if MODS_LEVEL_SELECT == 1

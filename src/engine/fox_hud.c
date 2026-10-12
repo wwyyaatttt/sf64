@@ -52,6 +52,7 @@ f32 sGoldRingsFwork[20];
 s32 D_80161900[20];
 
 #include "global.h"
+#include "mods.h"
 
 #include "assets/ast_bg_space.h"
 #include "assets/ast_bg_planet.h"
@@ -3563,6 +3564,38 @@ void HUD_VS_Radar(void) {
     HUD_Radar();
 }
 
+#if MODS_COOP == 1
+/* Family Edition co-op: player 2's shield gauge under Fox's hit counter; green like P2's lasers. */
+static void Coop_P2ShieldGauge_Draw(void) {
+    Player* p2;
+    f32 fill = 0.0f;
+    f32 x = 20.0f;
+    f32 y = 52.0f;
+
+    if ((gNumPlayers != 2) || gVersusMode || (Coop_P2Controller() < 0)) {
+        return;
+    }
+    p2 = &gPlayer[1];
+    if (p2->state == PLAYERSTATE_ACTIVE) {
+        fill = p2->shields / 255.0f;
+        if (fill > 1.0f) {
+            fill = 1.0f;
+        }
+    }
+    RCP_SetupDL(&gMasterDisp, SETUPDL_75);
+    gDPSetPrimColor(gMasterDisp++, 0, 0, 255, 255, 255, 255);
+    HUD_ShieldGaugeBars_Draw(x + 8.0f, y + 2.0f, 1.0f, 1.0f, fill);
+    RCP_SetupDL(&gMasterDisp, SETUPDL_76);
+    gDPSetPrimColor(gMasterDisp++, 0, 0, 80, 255, 80, 255);
+    HUD_ShieldGaugeEdgeLeft_Draw(x, y, 1.0f, 1.0f);
+    HUD_ShieldGaugeEdgeRight_Draw(x + 7.0f + 48.0f, y, 1.0f, 1.0f);
+    HUD_ShieldGaugeFrame_Draw(x + 7.0f, y, 6.0f, 1.0f);
+    RCP_SetupDL(&gMasterDisp, SETUPDL_83);
+    gDPSetPrimColor(gMasterDisp++, 0, 0, 80, 255, 80, 255);
+    Graphics_DisplaySmallText(x + 66.0f, y + 3.0f, 1.0f, 1.0f, "2P");
+}
+#endif
+
 void HUD_SinglePlayer(void) {
     if (gPlayState != PLAY_PAUSE) {
         HUD_Radar();
@@ -3578,6 +3611,9 @@ void HUD_SinglePlayer(void) {
 
     if (D_hud_80161708 != 0) {
         HUD_Shield_GoldRings_Score(24.0f, 30.0f);
+#if MODS_COOP == 1
+        Coop_P2ShieldGauge_Draw();
+#endif
         if (gCurrentLevel != LEVEL_TRAINING) {
             HUD_LivesCount2_Draw(248.0f, 11.0f, gLifeCount[gPlayerNum]);
         }

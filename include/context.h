@@ -20,6 +20,8 @@ extern LevelMode gLevelMode;
 extern DrawMode gDrawMode;
 extern s32 gPlayerNum;
 extern s32 gCamCount;
+s32 Coop_P2Controller(void); // Family co-op: controller flying player 2, -1 if nobody joined
+extern s32 gNumPlayers; // players being updated/drawn (Versus 4, Family co-op 2); gCamCount = viewports
 extern s32 gTeamShields[6];
 extern s32 gSavedTeamShields[6];
 extern s32 gPrevPlanetSavedTeamShields[6];

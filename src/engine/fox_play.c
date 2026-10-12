@@ -2503,11 +2503,215 @@ void Player_FloorCheck(Player* player) {
     }
 }
 
+s32 gNumPlayers = 1;
+
+#if MODS_COOP == 1
+/*
+ * Family Edition co-op: player 2 flies a second Arwing (gPlayer[1]) on player 1's screen.
+ * gCamCount stays 1 (one viewport, single-player HUD); gNumPlayers = 2 makes the update/draw loops include P2.
+ * P2 joins with START on another controller, can't pause and can't lose lives: when shot down they respawn
+ * beside Fox a few seconds later. Level flow, camera, checkpoints and Game Over stay Fox's.
+ */
+static s32 sCoopController = -1; // controller flying P2, -1 = nobody has joined
+static OSContPad sCoopHold;
+static OSContPad sCoopPress;
+
+static bool Coop_LevelAllowed(void) {
+    if ((gCurrentLevel == LEVEL_VERSUS) || (gCurrentLevel == LEVEL_TRAINING) || (gCurrentLevel == LEVEL_TITANIA) ||
+        (gCurrentLevel == LEVEL_MACBETH) || (gCurrentLevel == LEVEL_AQUAS)) {
+        return false;
+    }
+    return true;
+}
+
+static bool Coop_IsP2(Player* player) {
+    return (gNumPlayers == 2) && (player->num == 1);
+}
+
+static void Coop_CheckJoin(void) {
+    s32 i;
+
+    if ((sCoopController >= 0) && (gControllerPlugged[sCoopController] != 1)) {
+        sCoopController = -1; // unplugged: back to waiting
+    }
+    if (sCoopController >= 0) {
+        return;
+    }
+    for (i = 0; i < 4; i++) {
+        if ((i != gMainController) && (gControllerPlugged[i] == 1) && (gControllerPress[i].button & START_BUTTON)) {
+            sCoopController = i;
+            gBombCount[1] = 3;
+            gLaserStrength[1] = LASERS_TWIN; // a little head start for the helper
+            return;
+        }
+    }
+}
+
+static void Coop_SetP2Input(void) {
+    if (sCoopController >= 0) {
+        sCoopHold = gControllerHold[sCoopController];
+        sCoopPress = gControllerPress[sCoopController];
+        sCoopHold.button &= ~(U_CBUTTONS | START_BUTTON); // no cockpit view, no pause for P2
+        sCoopPress.button &= ~(U_CBUTTONS | START_BUTTON);
+        gControllerRumble = &gControllerRumbleFlags[sCoopController];
+    } else {
+        sCoopHold.button = sCoopHold.stick_x = sCoopHold.stick_y = 0;
+        sCoopPress.button = sCoopPress.stick_x = sCoopPress.stick_y = 0;
+    }
+    gInputHold = &sCoopHold;
+    gInputPress = &sCoopPress;
+}
+
+static void Coop_SpawnP2(Player* p2) {
+    Player* p1 = &gPlayer[0];
+
+    *p2 = *p1; // start from Fox's ship so path, speed and level settings match
+    p2->num = 1;
+    if (p1->pos.x > p1->xPath) {
+        p2->pos.x = p1->pos.x - 120.0f;
+    } else {
+        p2->pos.x = p1->pos.x + 120.0f;
+    }
+    p2->shields = 255;
+#if MODS_COOP_DEBUG == 1
+    p2->shields = 40;
+#endif
+    p2->damage = p2->heal = 0;
+    p2->hitTimer = p2->radioDamageTimer = 0;
+    p2->mercyTimer = 60;
+    p2->alternateView = false;
+    p2->csTimer = p2->csEventTimer = 0;
+    p2->arwing.rightWingState = p2->arwing.leftWingState = WINGSTATE_INTACT;
+    p2->arwing.laserGunsYpos = (gLaserStrength[1] > LASERS_SINGLE) ? -10.0f : 0.0f;
+    p2->draw = true;
+    p2->state = PLAYERSTATE_ACTIVE;
+    gRightWingHealth[1] = gLeftWingHealth[1] = 60;
+    gShieldAlpha[1] = 0.0f;
+    gHasShield[1] = gShieldTimer[1] = gChargeTimers[1] = 0;
+    Player_PlaySfx(p2->sfxSource, NA_SE_ARWING_BOOST, p2->num);
+}
+
+s32 Coop_P2Controller(void) {
+    return sCoopController;
+}
+
+/* Returns true when P2's state was fully handled here (waiting / spawning); false = fly normally. */
+static bool Coop_UpdateP2State(Player* p2) {
+    Player* p1 = &gPlayer[0];
+    bool canFly;
+
+    Coop_CheckJoin();
+    canFly = (sCoopController >= 0) && (p1->state == PLAYERSTATE_ACTIVE) && (p1->form == FORM_ARWING);
+
+    if (p2->state == PLAYERSTATE_ACTIVE) {
+#if MODS_COOP_DEBUG == 1
+        if (sCoopPress.button & L_TRIG) {
+            p2->shields = 0;
+            p2->radioDamageTimer = 1;
+        }
+#endif
+        if (canFly) {
+            return false;
+        }
+        p2->state = PLAYERSTATE_STANDBY; // Fox is in a cutscene / warp / down: P2 waits off-screen
+        p2->csEventTimer = 30;
+    }
+    p2->draw = false;
+    if (canFly) {
+        if (p2->csEventTimer > 0) {
+            p2->csEventTimer--;
+        } else {
+            Coop_SpawnP2(p2);
+        }
+    }
+    return true;
+}
+
+/* On-rails: P2 shares Fox's place on the path (same depth, same turns) and only moves within the screen. */
+static void Coop_UpdatePathP2(Player* p2) {
+    Player* p1 = &gPlayer[0];
+
+    p2->zPathVel = p1->zPathVel;
+    p2->zPath = p1->zPath;
+    p2->pos.z = p1->pos.z;
+    p2->xPath = p1->xPath;
+    p2->yPath = p1->yPath;
+    p2->xPathTarget = p1->xPathTarget;
+    p2->yPathTarget = p1->yPathTarget;
+    p2->pathStep = p1->pathStep;
+    p2->pathChangeTimer = p1->pathChangeTimer;
+    p2->pathChangeYaw = p1->pathChangeYaw;
+    p2->pathChangePitch = p1->pathChangePitch;
+    p2->pathHeight = p1->pathHeight;
+    p2->pathFloor = p1->pathFloor;
+    p2->yRot_114 = p1->yRot_114;
+    p2->xRot_120 = p1->xRot_120;
+    p2->trueZpos = p2->pos.z + p2->camDist;
+    // keep P2 on screen: the view is ~+-220 x +-166 wide at the ships' depth (400 from the camera, 45 deg FOV)
+    if (p2->pos.x > p1->cam.at.x + 150.0f) {
+        p2->pos.x = p1->cam.at.x + 150.0f;
+    }
+    if (p2->pos.x < p1->cam.at.x - 150.0f) {
+        p2->pos.x = p1->cam.at.x - 150.0f;
+    }
+    if (p2->pos.y > p1->cam.at.y + 100.0f) {
+        p2->pos.y = p1->cam.at.y + 100.0f;
+    }
+    if (p2->pos.y < p1->cam.at.y - 100.0f) {
+        p2->pos.y = p1->cam.at.y - 100.0f;
+    }
+    p2->bankAngle = p2->rot.z + p2->zRotBank + p2->zRotBarrelRoll;
+    while (p2->bankAngle > 360.0f) {
+        p2->bankAngle -= 360.0f;
+    }
+    while (p2->bankAngle < -360.0f) {
+        p2->bankAngle += 360.0f;
+    }
+}
+
+/* All-range: beyond 900 units P2 is eased back toward Fox (hard limit 1600) so they stay near Fox's camera. */
+static void Coop_TetherP2(Player* p2) {
+    Player* p1 = &gPlayer[0];
+    f32 dx = p2->pos.x - p1->pos.x;
+    f32 dy = p2->pos.y - p1->pos.y;
+    f32 dz = p2->pos.z - p1->pos.z;
+    f32 dist = sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+    f32 keep;
+
+    if (dist <= 900.0f) {
+        return;
+    }
+    keep = dist - ((dist - 900.0f) * 0.08f);
+    if (keep > 1600.0f) {
+        keep = 1600.0f;
+    }
+    keep /= dist;
+    p2->pos.x = p1->pos.x + (dx * keep);
+    p2->pos.y = p1->pos.y + (dy * keep);
+    p2->pos.z = p2->trueZpos = p1->pos.z + (dz * keep);
+}
+
+/* P2 shot down: explode, wait, respawn (no life lost, no music change, HUD untouched). */
+static void Coop_P2Down(Player* p2) {
+    s32 i;
+
+    Player_PlaySfx(p2->sfxSource, NA_SE_ARWING_EXPLOSION, p2->num);
+    for (i = 0; i < 8; i++) {
+        Effect_Effect357_Spawn50(p2->pos.x, p2->pos.y, p2->trueZpos, 1.0f);
+    }
+    Effect_FireSmoke1_Spawn4(p2->pos.x, p2->pos.y, p2->trueZpos, 4.0f);
+    p2->state = PLAYERSTATE_STANDBY;
+    p2->draw = false;
+    p2->shields = 0;
+    p2->csEventTimer = 90;
+}
+#endif
+
 void Player_InitializeAll(void) {
     u8* ptr = (u8*) gPlayer;
     u32 i;
 
-    for (i = 0; i < gCamCount * sizeof(Player); i++, ptr++) {
+    for (i = 0; i < gNumPlayers * sizeof(Player); i++, ptr++) {
         *ptr = 0;
     }
 }
@@ -2815,15 +3019,21 @@ void Play_Init(void) {
     if (gCurrentLevel == LEVEL_VERSUS) {
         gCamCount = 4;
     }
+    gNumPlayers = gCamCount;
+#if MODS_COOP == 1
+    if ((gCamCount == 1) && Coop_LevelAllowed()) {
+        gNumPlayers = 2;
+    }
+#endif
 
     for (i = TEAM_ID_FALCO; i < TEAM_ID_MAX; i++) {
         gTeamShields[i] = gSavedTeamShields[i];
     }
 
-    MEM_ARRAY_ALLOCATE(gPlayer, gCamCount);
+    MEM_ARRAY_ALLOCATE(gPlayer, gNumPlayers);
     Player_InitializeAll();
 
-    for (i = 0; i < gCamCount; i++) {
+    for (i = 0; i < gNumPlayers; i++) {
         gPlayer[i].state = PLAYERSTATE_INIT;
         gPlayerGlareAlphas[i] = D_ctx_801783C0[i] = 0;
         gControllerRumbleTimers[i] = 0;
@@ -3463,6 +3673,12 @@ void Player_UpdatePath(Player* player) {
     f32 temp_fv0_2;
     s32 temp_v0;
 
+#if MODS_COOP == 1
+    if (Coop_IsP2(player)) {
+        Coop_UpdatePathP2(player);
+        return;
+    }
+#endif
     player->zPathVel = -player->vel.z;
     player->zPath += -player->vel.z;
 
@@ -5533,6 +5749,12 @@ void Play_dummy_800B41E0(Player* player) {
 }
 
 void Player_Down(Player* player) {
+#if MODS_COOP == 1
+    if (Coop_IsP2(player)) {
+        Coop_P2Down(player);
+        return;
+    }
+#endif
     player->state = PLAYERSTATE_DOWN;
 
     if (!gVersusMode) {
@@ -5749,6 +5971,11 @@ static void Copilot_MergeInput(void) {
     sCopilotHold = gControllerHold[gMainController];
     sCopilotPress = gControllerPress[gMainController];
     for (i = 0; i < 4; i++) {
+#if MODS_COOP == 1
+        if ((gNumPlayers == 2) && (i == sCoopController)) {
+            continue;
+        }
+#endif
         if (i != gMainController) {
             sCopilotHold.button |= gControllerHold[i].button & (A_BUTTON | B_BUTTON);
             sCopilotPress.button |= gControllerPress[i].button & (A_BUTTON | B_BUTTON);
@@ -5780,6 +6007,11 @@ void Player_Update(Player* player) {
         Copilot_MergeInput();
 #endif
     }
+#if MODS_COOP == 1
+    if (Coop_IsP2(player)) {
+        Coop_SetP2Input();
+    }
+#endif
 
     D_ctx_80177990[player->num] += (s32) D_ctx_801779A8[player->num];
     Math_SmoothStepToF(&D_ctx_801779A8[player->num], 0.0f, 1.0f, 1.5f, 0.0f);
@@ -5819,6 +6051,11 @@ void Player_Update(Player* player) {
         player->whooshTimer--;
     }
 
+#if MODS_COOP == 1
+    if (Coop_IsP2(player) && Coop_UpdateP2State(player)) {
+        goto coop_skip_states;
+    }
+#endif
     switch (player->state) {
         case PLAYERSTATE_STANDBY:
             player->draw = false;
@@ -6075,6 +6312,12 @@ void Player_Update(Player* player) {
         default:
             break;
     }
+#if MODS_COOP == 1
+    if (Coop_IsP2(player) && (player->state == PLAYERSTATE_ACTIVE) && (gLevelMode == LEVELMODE_ALL_RANGE)) {
+        Coop_TetherP2(player);
+    }
+coop_skip_states:
+#endif
     if ((gFovYMode == 0) && (player->form == FORM_ARWING)) {
         sp1CC = 0.77699995f;
         sp1C8 = 1100.0f;
@@ -6929,10 +7172,17 @@ void Play_Update(void) {
         }
     }
 
-    for (i = 0; i < gCamCount; i++) {
+    for (i = 0; i < gNumPlayers; i++) {
         gPlayer[i].num = gPlayerNum = i;
         Player_Update(&gPlayer[i]);
     }
+#if MODS_COOP == 1
+    if (gNumPlayers != gCamCount) { // objects and the camera expect "current player" = Fox
+        gPlayerNum = 0;
+        gInputHold = &gControllerHold[gMainController];
+        gInputPress = &gControllerPress[gMainController];
+    }
+#endif
 
     Object_Update();
     PlayerShot_UpdateAll();
