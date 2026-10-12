@@ -1,5 +1,6 @@
 #include "prevent_bss_reordering.h"
 #include "global.h"
+#include "mods.h"
 #include "fox_map.h"
 #include "assets/ast_corneria.h"
 #include "assets/ast_training.h"
@@ -817,6 +818,11 @@ bool Player_CheckAllGoldRings(void) {
 }
 
 void Player_DamageWings(Player* player, s32 side, s32 damage) {
+#if MODS_KID_ASSIST == 1
+    if (!gVersusMode) { /* top the wing up first so a hit bends it but never snaps it off */
+        gRightWingHealth[player->num] = gLeftWingHealth[player->num] = 60;
+    }
+#endif
     if ((player->form == FORM_ARWING) && (gShieldAlpha[player->num] < 1.0f)) {
         if (side == 1) {
             gRightWingFlashTimer[player->num] = 30;
@@ -869,6 +875,11 @@ void Player_ApplyDamage(Player* player, s32 direction, s32 damage) {
     } else {
         player->damage = damage;
     }
+#if MODS_KID_ASSIST == 1
+    if (!gVersusMode) {
+        player->damage /= 2;
+    }
+#endif
 
     if (player->damage != 0) {
         player->radioDamageTimer = 4;
@@ -5486,6 +5497,17 @@ void Player_UpdateShields(Player* player) {
             Audio_KillSfxById(NA_SE_TEAM_SHIELD_UP);
         }
     }
+#if MODS_KID_ASSIST == 1
+    if (!gVersusMode) {
+        if ((player->damage == 0) && (player->shields > 0) && (player->shields < Play_GetMaxShields()) &&
+            ((gGameFrameCount & 7) == 0)) {
+            player->shields++; /* slow recharge while not being hit */
+        }
+        if (gLifeCount[0] < 2) {
+            gLifeCount[0] = 2; /* never a Game Over */
+        }
+    }
+#endif
 }
 
 void Player_LowHealthAlarm(Player* player) {
@@ -5716,6 +5738,27 @@ void Player_LowHealthMsg(Player* player) {
     }
 }
 
+#if MODS_COPILOT == 1
+static OSContPad sCopilotHold;
+static OSContPad sCopilotPress;
+
+/* Family Edition: every other controller can fire (A) and drop bombs (B) for player 1. */
+static void Copilot_MergeInput(void) {
+    s32 i;
+
+    sCopilotHold = gControllerHold[gMainController];
+    sCopilotPress = gControllerPress[gMainController];
+    for (i = 0; i < 4; i++) {
+        if (i != gMainController) {
+            sCopilotHold.button |= gControllerHold[i].button & (A_BUTTON | B_BUTTON);
+            sCopilotPress.button |= gControllerPress[i].button & (A_BUTTON | B_BUTTON);
+        }
+    }
+    gInputHold = &sCopilotHold;
+    gInputPress = &sCopilotPress;
+}
+#endif
+
 // lots of fakery
 void Player_Update(Player* player) {
     f32 sp1CC;
@@ -5733,6 +5776,9 @@ void Player_Update(Player* player) {
         gInputHold = &gControllerHold[gMainController];
         gInputPress = &gControllerPress[gMainController];
         gControllerRumble = &gControllerRumbleFlags[gMainController];
+#if MODS_COPILOT == 1
+        Copilot_MergeInput();
+#endif
     }
 
     D_ctx_80177990[player->num] += (s32) D_ctx_801779A8[player->num];

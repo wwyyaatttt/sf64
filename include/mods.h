@@ -83,6 +83,16 @@
  */
 #define MODS_ISVIEWER 0
 
+/**
+ * Family Edition (Couch Hub):
+ * Co-pilot: any other controller's A (fire) and B (bomb) also work for player 1,
+ * so a young co-pilot can blast enemies without steering.
+ * Kid assist: half damage, shields slowly recharge, wings never break off, infinite lives.
+ * Versus mode is untouched.
+ */
+#define MODS_COPILOT 1
+#define MODS_KID_ASSIST 1
+
 /* ************************* */
 
 #if MODS_LEVEL_SELECT == 1
