@@ -54,6 +54,8 @@ s32 D_80161900[20];
 #include "global.h"
 #include "mods.h"
 
+#define COOP_RADARMARK_P2 300 // co-op: player 2's Arwing on the all-range radar
+
 #include "assets/ast_bg_space.h"
 #include "assets/ast_bg_planet.h"
 #include "assets/ast_arwing.h"
@@ -1861,6 +1863,17 @@ void HUD_RadarMark_Draw(s32 type) {
     s32 arwingMarkColor;
     s32 playernum;
 
+#if MODS_COOP == 1
+    if (type == COOP_RADARMARK_P2) {
+        RCP_SetupDL(&gMasterDisp, SETUPDL_62);
+        gDPSetPrimColor(gMasterDisp++, 0, 0, 0, 255, 255, 255);
+        Matrix_Scale(gGfxMatrix, 54.0f, 54.0f, 1.0f, MTXF_APPLY);
+        Matrix_SetGfxMtx(&gMasterDisp);
+        gSPDisplayList(gMasterDisp++, aRadarMarkArwingDL);
+        return;
+    }
+#endif
+
     switch (type) {
         case RADARMARK_FOX:
         case RADARMARK_FALCO:
@@ -2015,6 +2028,16 @@ void HUD_RadarMarks_Setup(void) {
             }
         }
     }
+#if MODS_COOP == 1
+    if ((gNumPlayers == 2) && !gVersusMode && (gPlayer[1].state == PLAYERSTATE_ACTIVE)) {
+        gRadarMarks[64].enabled = true;
+        gRadarMarks[64].type = COOP_RADARMARK_P2;
+        gRadarMarks[64].yRot = gPlayer[1].yRot_114 + gPlayer[1].rot.y;
+        gRadarMarks[64].pos.x = gPlayer[1].pos.x;
+        gRadarMarks[64].pos.y = gPlayer[1].pos.y;
+        gRadarMarks[64].pos.z = gPlayer[1].trueZpos;
+    }
+#endif
 }
 
 s32 HUD_RadarMarks_Update(void) {
@@ -3565,14 +3588,32 @@ void HUD_VS_Radar(void) {
 }
 
 #if MODS_COOP == 1
-/* Family Edition co-op: player 2's shield gauge under Fox's hit counter; green like P2's lasers. */
-static void Coop_P2ShieldGauge_Draw(void) {
+/*
+ * Family Edition co-op HUD, under Fox's hit counter: once player 2 has joined, a green-framed shield gauge, "2P" and
+ * P2's bomb count; before that (when a second controller is plugged in) a blinking "2P PUSH START".
+ */
+static void Coop_P2Hud_Draw(void) {
     Player* p2;
     f32 fill = 0.0f;
     f32 x = 20.0f;
     f32 y = 52.0f;
+    s32 i;
 
-    if ((gNumPlayers != 2) || gVersusMode || (Coop_P2Controller() < 0)) {
+    if ((gNumPlayers != 2) || gVersusMode) {
+        return;
+    }
+    if (Coop_P2Controller() < 0) {
+        if ((gPlayer[0].state != PLAYERSTATE_ACTIVE) || !(gGameFrameCount & 0x20)) {
+            return;
+        }
+        for (i = 0; i < 4; i++) {
+            if ((i != gMainController) && (gControllerPlugged[i] == 1)) {
+                RCP_SetupDL(&gMasterDisp, SETUPDL_83);
+                gDPSetPrimColor(gMasterDisp++, 0, 0, 80, 255, 80, 255);
+                Graphics_DisplaySmallText(x, y + 3.0f, 1.0f, 1.0f, "2P PUSH START");
+                return;
+            }
+        }
         return;
     }
     p2 = &gPlayer[1];
@@ -3593,6 +3634,18 @@ static void Coop_P2ShieldGauge_Draw(void) {
     RCP_SetupDL(&gMasterDisp, SETUPDL_83);
     gDPSetPrimColor(gMasterDisp++, 0, 0, 80, 255, 80, 255);
     Graphics_DisplaySmallText(x + 66.0f, y + 3.0f, 1.0f, 1.0f, "2P");
+
+    if (gBombCount[1] > 9) {
+        gBombCount[1] = 9;
+    }
+    if (gBombCount[1] > 0) {
+        RCP_SetupDL_78();
+        gDPSetPrimColor(gMasterDisp++, 0, 0, 255, 255, 255, 255);
+        Lib_TextureRect_CI4(&gMasterDisp, aVsBombIconTex, aVsBombIconTLUT, 16, 16, x + 86.0f, y, 0.75f, 0.75f);
+        RCP_SetupDL(&gMasterDisp, SETUPDL_83);
+        gDPSetPrimColor(gMasterDisp++, 0, 0, 255, 255, 255, 255);
+        Graphics_DisplaySmallNumber(x + 100.0f, y + 3.0f, gBombCount[1]);
+    }
 }
 #endif
 
@@ -3612,7 +3665,7 @@ void HUD_SinglePlayer(void) {
     if (D_hud_80161708 != 0) {
         HUD_Shield_GoldRings_Score(24.0f, 30.0f);
 #if MODS_COOP == 1
-        Coop_P2ShieldGauge_Draw();
+        Coop_P2Hud_Draw();
 #endif
         if (gCurrentLevel != LEVEL_TRAINING) {
             HUD_LivesCount2_Draw(248.0f, 11.0f, gLifeCount[gPlayerNum]);

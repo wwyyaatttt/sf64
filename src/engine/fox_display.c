@@ -1,4 +1,5 @@
 #include "global.h"
+#include "mods.h"
 #include "assets/ast_arwing.h"
 #include "assets/ast_allies.h"
 #include "assets/ast_landmaster.h"
@@ -672,6 +673,19 @@ void Display_Arwing(Player* player, s32 reflectY) {
         sp4C.z = 2400.0f + sp48;
         Matrix_MultVec3f(gGfxMatrix, &sp4C, &D_display_801613E0[1]);
     }
+#if MODS_COOP == 1
+    if ((gNumPlayers == 2) && (player->num == 1) && (reflectY == 0)) { // co-op: P2's reticle points (slots 2, 3)
+        sp4C.x = 0.0f;
+        sp4C.y = 0.0f;
+        sp4C.z = 1200.0f;
+        Matrix_MultVec3f(gGfxMatrix, &sp4C, &D_display_801613E0[2]);
+        sp4C.z = 2400.0f;
+        if (gChargeTimers[1] >= 20) {
+            sp4C.z += (s32) (gGameFrameCount % 8U) * 80.0f;
+        }
+        Matrix_MultVec3f(gGfxMatrix, &sp4C, &D_display_801613E0[3]);
+    }
+#endif
 
     if (player->alternateView && (gLevelMode == LEVELMODE_ON_RAILS) &&
         (fabsf(player->trueZpos + gPathProgress - player->cam.eye.z) < 10.0f)) {
@@ -716,12 +730,17 @@ void Display_Arwing(Player* player, s32 reflectY) {
 void Display_Reticle(Player* player) {
     Vec3f* translate;
     s32 i;
+#if MODS_COOP == 1
+    s32 coopP2 = (gNumPlayers == 2) && (player->num == 1);
+#else
+    s32 coopP2 = false;
+#endif
 
-    if ((gPlayerNum == player->num) && ((player->form == FORM_ARWING) || (player->form == FORM_LANDMASTER)) &&
+    if (((gPlayerNum == player->num) || coopP2) && ((player->form == FORM_ARWING) || (player->form == FORM_LANDMASTER)) &&
         player->draw &&
         (((gGameState == GSTATE_PLAY) && (player->state == PLAYERSTATE_ACTIVE)) || (gGameState == GSTATE_MENU))) {
         for (i = 0; i < 2; i++) {
-            translate = &D_display_801613E0[i];
+            translate = &D_display_801613E0[coopP2 ? (i + 2) : i];
             Matrix_Push(&gGfxMatrix);
             Matrix_Translate(gGfxMatrix, translate->x, translate->y, translate->z, MTXF_APPLY);
 
@@ -735,6 +754,10 @@ void Display_Reticle(Player* player) {
                     gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 255, 255, 0, 255);
                     gDPSetEnvColor(gMasterDisp++, 255, 255, 0, 255);
                 }
+            } else if (coopP2) {
+                RCP_SetupDL(&gMasterDisp, SETUPDL_63);
+                gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 0, 255, 255, 255);
+                gDPSetEnvColor(gMasterDisp++, 0, 255, 255, 255);
             } else {
                 RCP_SetupDL_36();
             }
@@ -1836,13 +1859,13 @@ void Display_Update(void) {
     if ((gGroundSurface == SURFACE_WATER) && (gPlayer[0].state != PLAYERSTATE_LEVEL_INTRO)) {
         Matrix_Push(&gGfxMatrix);
         Matrix_Scale(gGfxMatrix, 1.0f, -1.0f, 1.0f, MTXF_APPLY);
-        for (i = 0, player = &gPlayer[0]; i < gCamCount; i++, player++) {
+        for (i = 0, player = &gPlayer[0]; i < gNumPlayers; i++, player++) {
             if (sPlayersVisible[i]) {
                 Display_PlayerFeatures(player);
                 Display_ArwingWingTrail_Update(player);
             }
-            Matrix_Pop(&gGfxMatrix);
         }
+        Matrix_Pop(&gGfxMatrix);
     }
 
     if (gCurrentLevel == LEVEL_AQUAS) {
@@ -1863,7 +1886,7 @@ void Display_Update(void) {
 
     gReflectY = 1;
 
-    for (i = 0, player = &gPlayer[0]; i < gCamCount; i++, player++) {
+    for (i = 0, player = &gPlayer[0]; i < gNumPlayers; i++, player++) {
         if (sPlayersVisible[i]) {
             Display_PlayerShadow_Update(player);
             Display_PlayerFeatures(player);
@@ -1889,7 +1912,7 @@ void Display_Update(void) {
         Display_CockpitGlass();
     }
 
-    for (i = 0, player = &gPlayer[0]; i < gCamCount; i++, player++) {
+    for (i = 0, player = &gPlayer[0]; i < gNumPlayers; i++, player++) {
         if (sPlayersVisible[i]) {
             if (gShowReticles[i]) {
                 Display_Reticle(player);

@@ -2567,7 +2567,16 @@ static void Coop_SpawnP2(Player* p2) {
 
     *p2 = *p1; // start from Fox's ship so path, speed and level settings match
     p2->num = 1;
-    if (p1->pos.x > p1->xPath) {
+    if (gLevelMode == LEVELMODE_ALL_RANGE) {
+        f32 dx = p1->cam.at.x - p1->cam.eye.x;
+        f32 dz = p1->cam.at.z - p1->cam.eye.z;
+        f32 len = sqrtf(SQ(dx) + SQ(dz));
+
+        if (len > 1.0f) { // beside Fox as seen from the camera
+            p2->pos.x = p1->pos.x + ((dz / len) * 120.0f);
+            p2->pos.z = p2->trueZpos = p1->pos.z - ((dx / len) * 120.0f);
+        }
+    } else if (p1->pos.x > p1->xPath) {
         p2->pos.x = p1->pos.x - 120.0f;
     } else {
         p2->pos.x = p1->pos.x + 120.0f;
@@ -2669,7 +2678,13 @@ static void Coop_UpdatePathP2(Player* p2) {
     }
 }
 
-/* All-range: beyond 900 units P2 is eased back toward Fox (hard limit 1600) so they stay near Fox's camera. */
+extern u8 sPlayersVisible[]; // fox_display.c: player was inside Fox's view when last drawn
+static s32 sCoopOffscreenFrames = 0;
+
+/*
+ * All-range: beyond 900 units P2 is eased back toward Fox (hard limit 1600) so they stay near Fox's camera, and
+ * after ~4 s out of Fox's view P2 regroups beside Fox (shields kept) so a young pilot never stays lost.
+ */
 static void Coop_TetherP2(Player* p2) {
     Player* p1 = &gPlayer[0];
     f32 dx = p2->pos.x - p1->pos.x;
@@ -2677,7 +2692,17 @@ static void Coop_TetherP2(Player* p2) {
     f32 dz = p2->pos.z - p1->pos.z;
     f32 dist = sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
     f32 keep;
+    s32 shields;
 
+    if (sPlayersVisible[1]) {
+        sCoopOffscreenFrames = 0;
+    } else if (++sCoopOffscreenFrames >= 120) {
+        sCoopOffscreenFrames = 0;
+        shields = p2->shields;
+        Coop_SpawnP2(p2);
+        p2->shields = shields;
+        return;
+    }
     if (dist <= 900.0f) {
         return;
     }
@@ -7181,6 +7206,7 @@ void Play_Update(void) {
         gPlayerNum = 0;
         gInputHold = &gControllerHold[gMainController];
         gInputPress = &gControllerPress[gMainController];
+        gControllerRumble = &gControllerRumbleFlags[gMainController];
     }
 #endif
 
