@@ -3593,7 +3593,8 @@ void HUD_VS_Radar(void) {
  * Family Edition co-op HUD, under Fox's hit counter: once player 2 has joined, a green-framed shield gauge, "2P" and
  * P2's bomb count; before that (when a second controller is plugged in) a blinking "2P PUSH START".
  */
-static s32 sCoopPromptFrames = 0; // how long "2P PUSH START" has been shown since Fox took control
+static s32 sCoopPromptStart = 0; // gGameFrameCount when "2P PUSH START" first showed in this level
+static s32 sCoopPromptLast = -1; // gGameFrameCount at the last HUD frame (the counter restarts every level / retry)
 
 static void Coop_P2Hud_Draw(void) {
     Player* p2;
@@ -3606,14 +3607,14 @@ static void Coop_P2Hud_Draw(void) {
         return;
     }
     if (Coop_P2Controller() < 0) {
-        if ((gPlayer[0].state != PLAYERSTATE_ACTIVE) && (gPlayer[0].state != PLAYERSTATE_U_TURN)) {
-            sCoopPromptFrames = 0; // remind again each time Fox takes control
+        // the HUD only draws while Fox flies, so notice a new level / retry by the per-level frame counter going back
+        if ((sCoopPromptLast < 0) || (gGameFrameCount < sCoopPromptLast)) {
+            sCoopPromptStart = gGameFrameCount;
+        }
+        sCoopPromptLast = gGameFrameCount;
+        if ((gGameFrameCount - sCoopPromptStart) >= 300) { // ~10 s per level, then stop nagging one-player games
             return;
         }
-        if (sCoopPromptFrames >= 300) { // ~10 s, then stop nagging one-player games
-            return;
-        }
-        sCoopPromptFrames++;
         if (!(gGameFrameCount & 0x20)) {
             return;
         }

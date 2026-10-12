@@ -7269,6 +7269,13 @@ void Play_Update(void) {
         gControllerRumble = &gControllerRumbleFlags[gMainController];
     }
 #endif
+#if MODS_COOP_DEBUG == 1
+    if ((gControllerPress[gMainController].button & L_TRIG) && (gPlayer[0].state == PLAYERSTATE_ACTIVE)) {
+        gMissionStatus = MISSION_ACCOMPLISHED;
+        gPlayer[0].state = PLAYERSTATE_LEVEL_COMPLETE;
+        gPlayer[0].csState = 0;
+    }
+#endif
 
     Object_Update();
     PlayerShot_UpdateAll();

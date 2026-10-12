@@ -1026,7 +1026,7 @@ void PlayerShot_CollisionCheck(PlayerShot* shot) {
                     if (shot->obj.id == PLAYERSHOT_LOCK_SEARCH) {
                         Object_Kill(&shot->obj, shot->sfxSource);
                     } else {
-                        if ((boss->obj.id == OBJ_BOSS_KA_SAUCERER) && (shot->sourceId != TEAM_ID_FOX)) {
+                        if ((boss->obj.id == OBJ_BOSS_KA_SAUCERER) && (SHOT_CREDIT(shot) != AI360_FOX + 1)) {
                             break;
                         }
                         boss->dmgType = DMG_BEAM;
@@ -1056,6 +1056,9 @@ void PlayerShot_CollisionCheck(PlayerShot* shot) {
                             boss->swork[19] = shot->sourceId;
                         }
                         boss->dmgPart = colResult - 1;
+#if MODS_COOP_DEBUG == 1
+                        boss->damage *= 10;
+#endif
                         if (boss->obj.id == OBJ_BOSS_AQ_UNK_301) {
                             boss->swork[5] = shot->obj.id;
                         } else if (boss->obj.id == OBJ_BOSS_VE1_GOLEMECH) {

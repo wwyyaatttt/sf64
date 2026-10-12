@@ -632,6 +632,13 @@ void Object_LoadLevelObjects(void) {
 
     gLastPathChange = 0;
 
+#if MODS_LEVEL_SELECT == 1
+    // test builds: a level started part-way through (level select START Z) skips the objects already behind it
+    while ((gLevelObjects[gObjectLoadIndex].id > OBJ_INVALID) &&
+           (gLevelObjects[gObjectLoadIndex].zPos1 < gPathProgress)) {
+        gObjectLoadIndex++;
+    }
+#endif
     for (i = 0, objInit = &gLevelObjects[gObjectLoadIndex]; i < 10000; i++, gObjectLoadIndex++, objInit++) {
         if (objInit->id <= OBJ_INVALID) {
             break;

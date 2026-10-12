@@ -28,6 +28,7 @@ void Map_LevelSelect(void) {
         "ZONESS", "CORNERIA", "TITANIA", "AQUAS",    "FORTUNA",  "VENOM 1",  "SOLAR",  "VENOM 2",
     };
     static s32 startOption = 0;
+    static s32 sStartZ = 0; // Family co-op tests: start this far into the level (0 = from the start)
 
     // static f32 zStart = 0.0f;
     // f32 zInc;
@@ -73,6 +74,11 @@ void Map_LevelSelect(void) {
     if (contPress->button & L_TRIG) {
         startOption ^= 1;
     }
+    if (contPress->button & D_CBUTTONS) { // C-down +10000, C-left -10000
+        sStartZ += 10000;
+    } else if ((contPress->button & L_CBUTTONS) && (sStartZ >= 10000)) {
+        sStartZ -= 10000;
+    }
 
     // if (contPress->button & U_CBUTTONS) {
     //     zInc = 100.0f;
@@ -110,6 +116,10 @@ void Map_LevelSelect(void) {
                 Graphics_DisplaySmallText(80, 210, 1.0f, 1.0f, "BETA SB");
             }
         }
+        if (sStartZ > 0) {
+            Graphics_DisplaySmallText(20, 220, 1.0f, 1.0f, "START Z:");
+            Graphics_DisplaySmallNumber(90, 220, sStartZ);
+        }
     }
 
     // Bypass briefing
@@ -131,6 +141,9 @@ void Map_LevelSelect(void) {
                             (sPlanetArray[mission][difficulty] == SAVE_SLOT_VENOM_2))) {
             gLevelPhase = 1;
         }
-        // gSavedPathProgress = gPathProgress = zStart;
+        if (sStartZ > 0) { // part-way start (on-rails levels): set after Map_PlayLevel, which clears it
+            gSavedPathProgress = gPathProgress = sStartZ;
+            gCsWasNotSkipped = false; // no level intro, like a checkpoint restart
+        }
     }
 }

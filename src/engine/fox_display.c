@@ -1868,6 +1868,12 @@ void Display_Update(void) {
             playerPos.x = player->pos.x;
             playerPos.y = player->pos.y;
             playerPos.z = player->trueZpos;
+#if MODS_COOP == 1
+            if ((gNumPlayers == 2) && !gVersusMode && (i == 1)) { // P2's reflection gets the cyan cast too
+                Lights_SetOneLight(&gMasterDisp, gLight2x, -1 * gLight2y, gLight2z, (gLight2R * 2) / 5, gLight2G,
+                                   gLight2B, (gAmbientR * 2) / 5, gAmbientG, gAmbientB);
+            }
+#endif
             Display_Player_Update(player, 1);
         }
         Matrix_Pop(&gGfxMatrix);
