@@ -454,6 +454,14 @@ static s32 sArwingDrawNum = 0; // player whose Arwing is being drawn (wing flash
 #if MODS_COOP == 1
 static s32 sCoopTint = false;    // drawing P2's ship with the cyan light cast
 static s32 sCoopTintSave[3];     // light 1 red, light 3 red, ambient red while tinted
+
+/* Co-op: P2's wings are drawn cyan (unlit texture x prim colour, the same setup the wing-repair flash uses),
+ * so the two ships tell apart under any level lighting. */
+static void Coop_P2WingColor(void) {
+    RCP_SetupDL(&gMasterDisp, SETUPDL_34);
+    Display_SetCullingMode();
+    gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 40, 230, 255, 255);
+}
 #endif
 
 bool Display_ArwingOverrideLimbDraw(s32 limbIndex, Gfx** gfxPtr, Vec3f* pos, Vec3f* rot, void* wingData) {
@@ -481,6 +489,11 @@ bool Display_ArwingOverrideLimbDraw(s32 limbIndex, Gfx** gfxPtr, Vec3f* pos, Vec
                     gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 255, 0, 0, 255);
                 }
             }
+#if MODS_COOP == 1
+            if (D_display_800CA22C && (sArwingDrawNum == 1) && (gRightWingFlashTimer[1] == 0)) {
+                Coop_P2WingColor();
+            }
+#endif
             break;
 
         case 1:
@@ -497,6 +510,11 @@ bool Display_ArwingOverrideLimbDraw(s32 limbIndex, Gfx** gfxPtr, Vec3f* pos, Vec
                     gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 255, 0, 0, 255);
                 }
             }
+#if MODS_COOP == 1
+            if (D_display_800CA22C && (sArwingDrawNum == 1) && (gRightWingFlashTimer[1] == 0)) {
+                Coop_P2WingColor();
+            }
+#endif
             break;
 
         case 12:
@@ -515,6 +533,11 @@ bool Display_ArwingOverrideLimbDraw(s32 limbIndex, Gfx** gfxPtr, Vec3f* pos, Vec
                     gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 255, 0, 0, 255);
                 }
             }
+#if MODS_COOP == 1
+            if (D_display_800CA22C && (sArwingDrawNum == 1) && (gLeftWingFlashTimer[1] == 0)) {
+                Coop_P2WingColor();
+            }
+#endif
             break;
 
         case 5:
@@ -531,6 +554,11 @@ bool Display_ArwingOverrideLimbDraw(s32 limbIndex, Gfx** gfxPtr, Vec3f* pos, Vec
                     gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 255, 0, 0, 255);
                 }
             }
+#if MODS_COOP == 1
+            if (D_display_800CA22C && (sArwingDrawNum == 1) && (gLeftWingFlashTimer[1] == 0)) {
+                Coop_P2WingColor();
+            }
+#endif
             break;
     }
 

@@ -3,6 +3,18 @@
 
 #if MODS_COOP == 1
 #define COOP_TEAM_LIFE(num) (gVersusMode ? (num) : 0) // co-op: a 1-up collected by P2 is a team (Fox) life
+
+static bool Coop_P2InFlight(void) {
+    return (gNumPlayers == 2) && !gVersusMode &&
+           ((gPlayer[1].state == PLAYERSTATE_ACTIVE) || (gPlayer[1].state == PLAYERSTATE_U_TURN));
+}
+static bool Coop_P2WingsBroken(void) {
+    return Coop_P2InFlight() && ((gPlayer[1].arwing.rightWingState <= WINGSTATE_BROKEN) ||
+                                 (gPlayer[1].arwing.leftWingState <= WINGSTATE_BROKEN));
+}
+static bool Coop_P2ShieldsLow(void) {
+    return Coop_P2InFlight() && (gPlayer[1].shields < 128);
+}
 #else
 #define COOP_TEAM_LIFE(num) (num)
 #endif
@@ -2154,11 +2166,19 @@ void ActorSupplies_Update(ActorSupplies* this) {
             Effect_TimedSfx_Spawn(&this->obj.pos, NA_SE_EN_EXPLOSION_S);
             Effect_FireSmoke1_Spawn3(this->obj.pos.x, this->obj.pos.y, this->obj.pos.z, 5.0f);
 
+#if MODS_COOP == 1
+            if ((((player[0].arwing.rightWingState <= WINGSTATE_BROKEN) ||
+                  (player[0].arwing.leftWingState <= WINGSTATE_BROKEN)) &&
+                 (player[0].form != FORM_LANDMASTER)) || Coop_P2WingsBroken()) {
+                this->itemDrop = DROP_WING_REPAIR;
+            } else if ((gPlayer[0].shields < 128) || Coop_P2ShieldsLow()) {
+#else
             if (((player[0].arwing.rightWingState <= WINGSTATE_BROKEN) ||
                  (player[0].arwing.leftWingState <= WINGSTATE_BROKEN)) &&
                 (player[0].form != FORM_LANDMASTER)) {
                 this->itemDrop = DROP_WING_REPAIR;
             } else if (gPlayer[0].shields < 128) {
+#endif
                 this->itemDrop = DROP_SILVER_STAR;
             } else if ((gLaserStrength[0] == LASERS_SINGLE) && (player[0].form != FORM_LANDMASTER)) {
                 this->itemDrop = DROP_LASERS;

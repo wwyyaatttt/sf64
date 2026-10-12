@@ -2679,6 +2679,32 @@ s32 Coop_P2Controller(void) {
     return sCoopController;
 }
 
+#if MODS_COOP_DEBUG == 1
+static void Coop_DebugSpawnItem(Player* p2) {
+    static s32 sNext = 0;
+    static ObjectId sIds[] = { OBJ_ITEM_1UP, OBJ_ITEM_WING_REPAIR, OBJ_ITEM_CHECKPOINT, OBJ_ITEM_SILVER_RING };
+    Item* item;
+    s32 i;
+
+    for (item = &gItems[0], i = 0; i < ARRAY_COUNT(gItems); i++, item++) {
+        if (item->obj.status == OBJ_FREE) {
+            Item_Initialize(item);
+            item->obj.status = OBJ_INIT;
+            item->obj.id = sIds[sNext];
+            item->obj.pos.x = p2->pos.x;
+            item->obj.pos.y = p2->pos.y;
+            item->obj.pos.z = p2->trueZpos - 600.0f;
+            item->timer_4A = 8;
+            Object_SetInfo(&item->info, item->obj.id);
+            item->unk_50 = 90.0f;
+            item->timer_48 = 1000;
+            break;
+        }
+    }
+    sNext = (sNext + 1) % ARRAY_COUNT(sIds);
+}
+#endif
+
 /* Returns true when P2's state was fully handled here (waiting / spawning); false = fly normally. */
 static bool Coop_UpdateP2State(Player* p2) {
     Player* p1 = &gPlayer[0];
@@ -2695,6 +2721,9 @@ static bool Coop_UpdateP2State(Player* p2) {
         if (sCoopPress.button & D_JPAD) { // test builds: P2 D-pad down = self-destruct
             p2->shields = 0;
             p2->radioDamageTimer = 1;
+        }
+        if (sCoopPress.button & U_JPAD) { // test builds: P2 D-pad up = drop a test item ahead of P2
+            Coop_DebugSpawnItem(p2);
         }
 #endif
         if (foxFlying) {
