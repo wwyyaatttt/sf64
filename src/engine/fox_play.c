@@ -7353,6 +7353,21 @@ void Play_Update(void) {
         gPlayer[0].shields = 0; // P1 D-pad down: Fox goes down (2: Player_UpdateEffects decrements it first)
         gPlayer[0].radioDamageTimer = 2;
     }
+    if (gControllerPress[gMainController].button & L_JPAD) { // P1 D-pad left: the active boss dies to the next hit
+        s32 bi;
+
+        for (bi = 0; bi < ARRAY_COUNT(gBosses); bi++) {
+            if (gBosses[bi].obj.status == OBJ_ACTIVE) {
+                if (gBosses[bi].obj.id == OBJ_BOSS_AND_ANDROSS) {
+                    gBosses[bi].swork[4] = gBosses[bi].swork[5] = -1; // Andross: both hands gone
+                }
+                gBosses[bi].health = 1;
+                gBosses[bi].dmgType = DMG_BEAM;
+                gBosses[bi].dmgPart = 1; // Andross face takes parts 0/1, the brain parts 1/2
+                gBosses[bi].damage = 100;
+            }
+        }
+    }
 #endif
 
     Object_Update();
