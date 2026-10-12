@@ -2319,6 +2319,13 @@ void Effect_FlamePillar_Update(EffectFlamePillar* this) {
                     Player_ApplyDamage(&gPlayer[0], 0, this->info.damage);
                 }
             }
+#if MODS_COOP == 1
+            if (Coop_P2Flying() && (fabsf(gPlayer[1].trueZpos - this->obj.pos.z) < 40.0f) &&
+                (fabsf(gPlayer[1].pos.x - this->obj.pos.x) < 80.0f) && (this->obj.pos.y < gPlayer[1].pos.y) &&
+                ((gPlayer[1].pos.y - this->obj.pos.y) < (this->scale2 * 35.0f)) && (gPlayer[1].mercyTimer == 0)) {
+                Player_ApplyDamage(&gPlayer[1], 0, this->info.damage);
+            }
+#endif
             break;
     }
 }
@@ -3936,6 +3943,14 @@ void Effect_Effect395_Update(Effect395* this) {
                 (gPlayer[0].mercyTimer == 0)) {
                 Player_ApplyDamage(&gPlayer[0], 0, 40);
             }
+#if MODS_COOP == 1
+            // P2 flies at Fox's depth on rails, so the beam's cross-section point computed for Fox applies to P2 too
+            if (Coop_P2Flying() && (this->timer_50 == 0) && (gPlayer[1].mercyTimer == 0) &&
+                (fabsf(gPlayer[1].pos.x - (this->obj.pos.x + velocityDest.x)) <= (this->orient.x * 50.0f)) &&
+                (fabsf(gPlayer[1].pos.y - (this->obj.pos.y + velocityDest.y)) <= (this->orient.y * 50.0f))) {
+                Player_ApplyDamage(&gPlayer[1], 0, 40);
+            }
+#endif
             break;
 
         case 11:

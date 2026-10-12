@@ -450,6 +450,8 @@ void Display_SetCullingMode(void) {
     }
 }
 
+static s32 sArwingDrawNum = 0; // player whose Arwing is being drawn (wing flash timers are per player)
+
 bool Display_ArwingOverrideLimbDraw(s32 limbIndex, Gfx** gfxPtr, Vec3f* pos, Vec3f* rot, void* wingData) {
     ArwingInfo* arwing = (ArwingInfo*) wingData;
 
@@ -466,10 +468,10 @@ bool Display_ArwingOverrideLimbDraw(s32 limbIndex, Gfx** gfxPtr, Vec3f* pos, Vec
             if (arwing->rightWingState == WINGSTATE_BROKEN) {
                 *gfxPtr = aAwLeftWingBrokenDL;
             }
-            if (D_display_800CA22C && ((gRightWingFlashTimer[0] % 2) != 0)) {
+            if (D_display_800CA22C && ((gRightWingFlashTimer[sArwingDrawNum] % 2) != 0)) {
                 RCP_SetupDL(&gMasterDisp, SETUPDL_34);
                 Display_SetCullingMode();
-                if (gRightWingFlashTimer[0] > 1000) {
+                if (gRightWingFlashTimer[sArwingDrawNum] > 1000) {
                     gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 32, 32, 255, 255);
                 } else {
                     gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 255, 0, 0, 255);
@@ -482,10 +484,10 @@ bool Display_ArwingOverrideLimbDraw(s32 limbIndex, Gfx** gfxPtr, Vec3f* pos, Vec
             if (arwing->rightWingState != 2) {
                 *gfxPtr = NULL;
             }
-            if (D_display_800CA22C && ((gRightWingFlashTimer[0] % 2) != 0)) {
+            if (D_display_800CA22C && ((gRightWingFlashTimer[sArwingDrawNum] % 2) != 0)) {
                 RCP_SetupDL(&gMasterDisp, SETUPDL_34);
                 Display_SetCullingMode();
-                if (gRightWingFlashTimer[0] > 1000) {
+                if (gRightWingFlashTimer[sArwingDrawNum] > 1000) {
                     gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 32, 32, 255, 255);
                 } else {
                     gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 255, 0, 0, 255);
@@ -500,10 +502,10 @@ bool Display_ArwingOverrideLimbDraw(s32 limbIndex, Gfx** gfxPtr, Vec3f* pos, Vec
             if (arwing->leftWingState == WINGSTATE_BROKEN) {
                 *gfxPtr = aAwRightWingBrokenDL;
             }
-            if (D_display_800CA22C && ((gLeftWingFlashTimer[0] % 2) != 0)) {
+            if (D_display_800CA22C && ((gLeftWingFlashTimer[sArwingDrawNum] % 2) != 0)) {
                 RCP_SetupDL(&gMasterDisp, SETUPDL_34);
                 Display_SetCullingMode();
-                if (gLeftWingFlashTimer[0] > 1000) {
+                if (gLeftWingFlashTimer[sArwingDrawNum] > 1000) {
                     gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 32, 32, 255, 255);
                 } else {
                     gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 255, 0, 0, 255);
@@ -516,10 +518,10 @@ bool Display_ArwingOverrideLimbDraw(s32 limbIndex, Gfx** gfxPtr, Vec3f* pos, Vec
             if (arwing->leftWingState != 2) {
                 *gfxPtr = NULL;
             }
-            if (D_display_800CA22C && ((gLeftWingFlashTimer[0] % 2) != 0)) {
+            if (D_display_800CA22C && ((gLeftWingFlashTimer[sArwingDrawNum] % 2) != 0)) {
                 RCP_SetupDL(&gMasterDisp, SETUPDL_34);
                 Display_SetCullingMode();
-                if (gLeftWingFlashTimer[0] > 1000) {
+                if (gLeftWingFlashTimer[sArwingDrawNum] > 1000) {
                     gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 32, 32, 255, 255);
                 } else {
                     gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 255, 0, 0, 255);
@@ -720,8 +722,10 @@ void Display_Arwing(Player* player, s32 reflectY) {
             D_display_800CA22C = true;
             gReflectY = reflectY;
             sArwingSkelJoints = player->jointTable;
+            sArwingDrawNum = player->num;
             Display_Arwing_Skel(&player->arwing);
             sArwingSkelJoints = NULL;
+            sArwingDrawNum = 0;
         }
     }
 }
@@ -1820,6 +1824,12 @@ void Display_Update(void) {
         playerPos.x = player->pos.x;
         playerPos.y = player->pos.y;
         playerPos.z = player->trueZpos;
+#if MODS_COOP == 1
+        if ((gNumPlayers == 2) && !gVersusMode && (i == 1)) { // co-op: less red light on P2's ship = cyan tint
+            Lights_SetOneLight(&gMasterDisp, gLight2x, gLight2y, gLight2z, (gLight2R * 2) / 5, gLight2G, gLight2B,
+                               (gAmbientR * 2) / 5, gAmbientG, gAmbientB);
+        }
+#endif
         Display_SetSecondLight(&playerPos);
         Display_Player_Update(player, 0);
         Display_SetupPlayerSfxPos(player);
