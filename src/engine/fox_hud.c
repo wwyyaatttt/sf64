@@ -2029,7 +2029,8 @@ void HUD_RadarMarks_Setup(void) {
         }
     }
 #if MODS_COOP == 1
-    if ((gNumPlayers == 2) && !gVersusMode && (gPlayer[1].state == PLAYERSTATE_ACTIVE)) {
+    if ((gNumPlayers == 2) && !gVersusMode &&
+        ((gPlayer[1].state == PLAYERSTATE_ACTIVE) || (gPlayer[1].state == PLAYERSTATE_U_TURN))) {
         gRadarMarks[64].enabled = true;
         gRadarMarks[64].type = COOP_RADARMARK_P2;
         gRadarMarks[64].yRot = gPlayer[1].yRot_114 + gPlayer[1].rot.y;
@@ -3592,6 +3593,8 @@ void HUD_VS_Radar(void) {
  * Family Edition co-op HUD, under Fox's hit counter: once player 2 has joined, a green-framed shield gauge, "2P" and
  * P2's bomb count; before that (when a second controller is plugged in) a blinking "2P PUSH START".
  */
+static s32 sCoopPromptFrames = 0; // how long "2P PUSH START" has been shown since Fox took control
+
 static void Coop_P2Hud_Draw(void) {
     Player* p2;
     f32 fill = 0.0f;
@@ -3603,7 +3606,15 @@ static void Coop_P2Hud_Draw(void) {
         return;
     }
     if (Coop_P2Controller() < 0) {
-        if ((gPlayer[0].state != PLAYERSTATE_ACTIVE) || !(gGameFrameCount & 0x20)) {
+        if ((gPlayer[0].state != PLAYERSTATE_ACTIVE) && (gPlayer[0].state != PLAYERSTATE_U_TURN)) {
+            sCoopPromptFrames = 0; // remind again each time Fox takes control
+            return;
+        }
+        if (sCoopPromptFrames >= 300) { // ~10 s, then stop nagging one-player games
+            return;
+        }
+        sCoopPromptFrames++;
+        if (!(gGameFrameCount & 0x20)) {
             return;
         }
         for (i = 0; i < 4; i++) {
@@ -3617,11 +3628,13 @@ static void Coop_P2Hud_Draw(void) {
         return;
     }
     p2 = &gPlayer[1];
-    if (p2->state == PLAYERSTATE_ACTIVE) {
-        fill = p2->shields / 255.0f;
+    if (p2->shields > 0) {
+        fill = p2->shields / 255.0f; // also while waiting out a cutscene (shields are kept)
         if (fill > 1.0f) {
             fill = 1.0f;
         }
+    } else if (p2->csEventTimer == 0) {
+        fill = 1.0f; // joined but not spawned yet this level: will spawn full
     }
     RCP_SetupDL(&gMasterDisp, SETUPDL_75);
     gDPSetPrimColor(gMasterDisp++, 0, 0, 255, 255, 255, 255);

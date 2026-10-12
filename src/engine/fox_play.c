@@ -2528,6 +2528,16 @@ static bool Coop_IsP2(Player* player) {
     return (gNumPlayers == 2) && (player->num == 1);
 }
 
+static s32 sCoopLeaveHold = 0; // frames P2 has held START; ~2 s = leave
+
+/* New game (title / main menu): nobody is flying P2 until they press START again. */
+void Coop_Reset(void) {
+    sCoopController = -1;
+    sCoopLeaveHold = 0;
+    gBombCount[1] = 0;
+    gLaserStrength[1] = LASERS_SINGLE;
+}
+
 static void Coop_CheckJoin(void) {
     s32 i;
 
@@ -2535,13 +2545,26 @@ static void Coop_CheckJoin(void) {
         sCoopController = -1; // unplugged: back to waiting
     }
     if (sCoopController >= 0) {
+        // P2 leaves by holding START ~2 s (a tap does nothing, so a young pilot can't drop out by accident)
+        if (gControllerHold[sCoopController].button & START_BUTTON) {
+            if (++sCoopLeaveHold >= 60) {
+                sCoopLeaveHold = 0;
+                sCoopController = -1;
+            }
+        } else {
+            sCoopLeaveHold = 0;
+        }
         return;
     }
     for (i = 0; i < 4; i++) {
         if ((i != gMainController) && (gControllerPlugged[i] == 1) && (gControllerPress[i].button & START_BUTTON)) {
             sCoopController = i;
-            gBombCount[1] = 3;
-            gLaserStrength[1] = LASERS_TWIN; // a little head start for the helper
+            if (gBombCount[1] < 3) {
+                gBombCount[1] = 3;
+            }
+            if (gLaserStrength[1] < LASERS_TWIN) {
+                gLaserStrength[1] = LASERS_TWIN; // a little head start for the helper
+            }
             return;
         }
     }
@@ -2581,7 +2604,7 @@ static void Coop_SpawnP2(Player* p2) {
     } else {
         p2->pos.x = p1->pos.x + 120.0f;
     }
-    p2->shields = 255;
+    p2->shields = Play_GetMaxShields();
 #if MODS_COOP_DEBUG == 1
     p2->shields = 40;
 #endif
@@ -2590,6 +2613,25 @@ static void Coop_SpawnP2(Player* p2) {
     p2->mercyTimer = 60;
     p2->alternateView = false;
     p2->csTimer = p2->csEventTimer = 0;
+    // don't inherit whatever Fox is in the middle of (loop, barrel roll, boost, knockback, U-turn)
+    p2->state = PLAYERSTATE_ACTIVE;
+    p2->csState = 0;
+    p2->somersault = false;
+    p2->aerobaticPitch = 0.0f;
+    p2->zRotBank = p2->zRotBarrelRoll = 0.0f;
+    p2->rollState = p2->rollTimer = p2->rollInputTimerL = p2->rollInputTimerR = 0;
+    p2->barrelRollAlpha = 0;
+    p2->boostCooldown = p2->boostActive = false;
+    p2->boostMeter = p2->boostSpeed = 0.0f;
+    p2->knockback.x = p2->knockback.y = p2->knockback.z = 0.0f;
+    p2->vel.x = p2->vel.y = 0.0f;
+    p2->rot.x = p2->rot.y = p2->rot.z = 0.0f;
+    p2->damageShake = 0.0f;
+    p2->dmgEffect = p2->dmgEffectTimer = 0;
+    p2->meteoWarpTimer = p2->deflectCount = p2->attacker = 0;
+    p2->unk_004 = 0.0f; // U-turn climb
+    p2->unk_19C = 0;    // forced U-turn flag
+    gUturnBrakeTimers[1] = gUturnDownTimers[1] = 0;
     p2->arwing.rightWingState = p2->arwing.leftWingState = WINGSTATE_INTACT;
     p2->arwing.laserGunsYpos = (gLaserStrength[1] > LASERS_SINGLE) ? -10.0f : 0.0f;
     p2->draw = true;
@@ -2607,30 +2649,37 @@ s32 Coop_P2Controller(void) {
 /* Returns true when P2's state was fully handled here (waiting / spawning); false = fly normally. */
 static bool Coop_UpdateP2State(Player* p2) {
     Player* p1 = &gPlayer[0];
-    bool canFly;
+    bool foxFlying;
+    s32 shields;
 
     Coop_CheckJoin();
-    canFly = (sCoopController >= 0) && (p1->state == PLAYERSTATE_ACTIVE) && (p1->form == FORM_ARWING);
+    // a U-turn is a player state, not a cutscene: Fox (or P2) turning around keeps both ships in the air
+    foxFlying = (sCoopController >= 0) && (p1->form == FORM_ARWING) &&
+                ((p1->state == PLAYERSTATE_ACTIVE) || (p1->state == PLAYERSTATE_U_TURN));
 
-    if (p2->state == PLAYERSTATE_ACTIVE) {
+    if ((p2->state == PLAYERSTATE_ACTIVE) || (p2->state == PLAYERSTATE_U_TURN)) {
 #if MODS_COOP_DEBUG == 1
         if (sCoopPress.button & L_TRIG) {
             p2->shields = 0;
             p2->radioDamageTimer = 1;
         }
 #endif
-        if (canFly) {
-            return false;
+        if (foxFlying) {
+            return false; // fly normally (the vanilla U_TURN case handles P2's own U-turn)
         }
         p2->state = PLAYERSTATE_STANDBY; // Fox is in a cutscene / warp / down: P2 waits off-screen
         p2->csEventTimer = 30;
     }
     p2->draw = false;
-    if (canFly) {
+    if (foxFlying && (p1->state == PLAYERSTATE_ACTIVE)) { // (re)spawn only beside a Fox in level flight
         if (p2->csEventTimer > 0) {
             p2->csEventTimer--;
         } else {
+            shields = p2->shields; // > 0 = P2 only waited out a cutscene: keep their shields
             Coop_SpawnP2(p2);
+            if (shields > 0) {
+                p2->shields = shields;
+            }
         }
     }
     return true;
@@ -2728,7 +2777,7 @@ static void Coop_P2Down(Player* p2) {
     p2->state = PLAYERSTATE_STANDBY;
     p2->draw = false;
     p2->shields = 0;
-    p2->csEventTimer = 90;
+    p2->csEventTimer = 120; // ~4 s (the Arwing callers of Player_Down also set 120 right after this returns)
 }
 #endif
 
@@ -5756,6 +5805,11 @@ void Player_LowHealthAlarm(Player* player) {
 
     Player_UpdateShields(player);
 
+#if MODS_COOP == 1
+    if (Coop_IsP2(player)) {
+        return; // P2's gauge shows their shields; the shared buzzer would sound like Fox is low
+    }
+#endif
     if (player->shields < 128) {
         if (player->shields > 80) {
             mask = 64 - 1;
@@ -6103,7 +6157,13 @@ void Player_Update(Player* player) {
 
         case PLAYERSTATE_ACTIVE:
             gShowHud = true;
+#if MODS_COOP == 1
+            if (!Coop_IsP2(player)) {
+                Player_LowHealthMsg(player);
+            }
+#else
             Player_LowHealthMsg(player);
+#endif
             player->arwing.drawFace = false;
             D_hud_80161704 = 255;
 

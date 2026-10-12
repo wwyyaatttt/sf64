@@ -313,10 +313,16 @@ void Game_SetScene(void) {
         case GSTATE_TITLE:
             gSceneId = SCENE_TITLE;
             gSceneSetup = 0;
+#if MODS_COOP == 1
+            Coop_Reset();
+#endif
             break;
         case GSTATE_MENU:
             gSceneId = SCENE_MENU;
             gSceneSetup = 0;
+#if MODS_COOP == 1
+            Coop_Reset();
+#endif
             break;
         case GSTATE_MAP:
             gSceneId = SCENE_MAP;

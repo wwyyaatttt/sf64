@@ -1,4 +1,11 @@
 #include "global.h"
+#include "mods.h"
+
+#if MODS_COOP == 1
+#define COOP_TEAM_LIFE(num) (gVersusMode ? (num) : 0) // co-op: a 1-up collected by P2 is a team (Fox) life
+#else
+#define COOP_TEAM_LIFE(num) (num)
+#endif
 #include "assets/ast_corneria.h"
 #include "assets/ast_sector_x.h"
 #include "assets/ast_sector_y.h"
@@ -2210,6 +2217,27 @@ void Player_RepairWings(void) {
     }
 }
 
+#if MODS_COOP == 1
+/* Family co-op: a wing repair collected by player 2 fixes P2's wings (Player_RepairWings only does Fox's). */
+static void Coop_RepairWingsP2(void) {
+    AUDIO_PLAY_SFX(NA_SE_WING_REPAIR, gPlayer[1].sfxSource, 0);
+
+    if (gPlayer[1].arwing.rightWingState <= WINGSTATE_BROKEN) {
+        gRightWingFlashTimer[1] = 1050;
+        gPlayer[1].arwing.rightWingState = WINGSTATE_INTACT;
+    }
+    if (gPlayer[1].arwing.leftWingState <= WINGSTATE_BROKEN) {
+        gLeftWingFlashTimer[1] = 1050;
+        gPlayer[1].arwing.leftWingState = WINGSTATE_INTACT;
+    }
+    if (gExpertMode) {
+        gRightWingHealth[1] = gLeftWingHealth[1] = 10;
+    } else {
+        gRightWingHealth[1] = gLeftWingHealth[1] = 60;
+    }
+}
+#endif
+
 void Item1up_Update(Item1UP* this) {
     Item_CheckBounds(this);
     Item_SpinPickup(this);
@@ -2218,7 +2246,7 @@ void Item1up_Update(Item1UP* this) {
         Object_Kill(&this->obj, this->sfxSource);
         Object_PlayerSfx(gPlayer[this->playerNum].sfxSource, NA_SE_ONE_UP, this->playerNum);
         if (gCurrentLevel != LEVEL_TRAINING) {
-            gLifeCount[this->playerNum]++;
+            gLifeCount[COOP_TEAM_LIFE(this->playerNum)]++;
         }
     }
 
@@ -2327,7 +2355,7 @@ void ItemSupplyRing_Update(Item* this) {
                     } else if (gGoldRingCount[0] == 6) {
                         Object_PlayerSfx(gPlayer[this->playerNum].sfxSource, NA_SE_ONE_UP, this->playerNum);
                         if (gCurrentLevel != LEVEL_TRAINING) {
-                            gLifeCount[this->playerNum]++;
+                            gLifeCount[COOP_TEAM_LIFE(this->playerNum)]++;
                         }
                         gPlayer[this->playerNum].heal += 32;
                         BonusText_Display(gPlayer[this->playerNum].pos.x, gPlayer[this->playerNum].pos.y,
@@ -2403,7 +2431,15 @@ void ItemWingRepair_Update(ItemWingRepair* this) {
     Item_SpinPickup(this);
 
     if (this->collected) {
+#if MODS_COOP == 1
+        if (!gVersusMode && (gNumPlayers == 2) && (this->playerNum == 1)) {
+            Coop_RepairWingsP2();
+        } else {
+            Player_RepairWings();
+        }
+#else
         Player_RepairWings();
+#endif
         Object_Kill(&this->obj, this->sfxSource);
     }
 
@@ -2495,6 +2531,14 @@ void ItemCheckpoint_Update(ItemCheckpoint* this) {
         this->width = 100.0f;
         if (this->collected) {
             gPlayer[this->playerNum].heal = 128;
+#if MODS_COOP == 1
+            if (!gVersusMode && (gNumPlayers == 2)) { // co-op: the checkpoint heals both ships
+                gPlayer[0].heal = 128;
+                if ((gPlayer[1].state == PLAYERSTATE_ACTIVE) || (gPlayer[1].state == PLAYERSTATE_U_TURN)) {
+                    gPlayer[1].heal = 128;
+                }
+            }
+#endif
             this->state++;
             this->timer_48 = 15;
             gSavedGroundSurface = gGroundSurface;
@@ -2851,6 +2895,14 @@ void Actor_Update(Actor* this) {
         }
         gChargeTimers[0] = 0;
     }
+#if MODS_COOP == 1
+    if (!gVersusMode && (gNumPlayers == 2) && (this->lockOnTimers[1] != 0)) { // P2's lock decays like Fox's
+        if ((Coop_P2Controller() < 0) || !(gControllerHold[Coop_P2Controller()].button & A_BUTTON)) {
+            this->lockOnTimers[1]--;
+        }
+        gChargeTimers[1] = 0;
+    }
+#endif
 
     if (this->timer_0C4 != 0) {
         this->timer_0C4--;

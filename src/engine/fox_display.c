@@ -451,6 +451,10 @@ void Display_SetCullingMode(void) {
 }
 
 static s32 sArwingDrawNum = 0; // player whose Arwing is being drawn (wing flash timers are per player)
+#if MODS_COOP == 1
+static s32 sCoopTint = false;    // drawing P2's ship with the cyan light cast
+static s32 sCoopTintSave[3];     // light 1 red, light 3 red, ambient red while tinted
+#endif
 
 bool Display_ArwingOverrideLimbDraw(s32 limbIndex, Gfx** gfxPtr, Vec3f* pos, Vec3f* rot, void* wingData) {
     ArwingInfo* arwing = (ArwingInfo*) wingData;
@@ -1590,7 +1594,7 @@ void Display_LockOnIndicator(void) {
     s32 j;
     f32 var_fs0;
 
-    for (i = 0; i < gCamCount; i++) {
+    for (i = 0; i < gNumPlayers; i++) {
         if (gLockOnTargetViewPos[i].z < 0.0f) {
             var_fs0 = VEC3F_MAG(&gLockOnTargetViewPos[i]);
             if (var_fs0 < 20000.0f) {
@@ -1605,7 +1609,7 @@ void Display_LockOnIndicator(void) {
                 Matrix_Push(&gGfxMatrix);
                 Matrix_Translate(gGfxMatrix, gLockOnTargetViewPos[i].x, gLockOnTargetViewPos[i].y,
                                  gLockOnTargetViewPos[i].z, MTXF_APPLY);
-                if ((gPlayState != PLAY_PAUSE) && (i == gPlayerNum)) {
+                if ((gPlayState != PLAY_PAUSE) && ((i == gPlayerNum) || (i >= gCamCount))) {
                     Math_SmoothStepToF(&D_display_801615A8[i], 0.0f, 0.5f, 20.0f, 0);
                     Math_SmoothStepToF(&D_display_801615B8[i], 1.0, 0.5f, 0.2f, 0);
                 }
@@ -1614,15 +1618,20 @@ void Display_LockOnIndicator(void) {
                 Matrix_RotateZ(gGfxMatrix, D_display_801615A8[i] * M_DTOR, MTXF_APPLY);
                 Matrix_SetGfxMtx(&gMasterDisp);
                 RCP_SetupDL(&gMasterDisp, SETUPDL_67);
-                gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 255, 0, 0, 255);
-                gDPSetEnvColor(gMasterDisp++, 255, 0, 0, 255);
+                if (i >= gCamCount) { // co-op: P2's lock-on marker is cyan
+                    gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 0, 255, 255, 255);
+                    gDPSetEnvColor(gMasterDisp++, 0, 255, 255, 255);
+                } else {
+                    gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 255, 0, 0, 255);
+                    gDPSetEnvColor(gMasterDisp++, 255, 0, 0, 255);
+                }
                 gSPDisplayList(gMasterDisp++, aReticleDL);
                 Matrix_Pop(&gGfxMatrix);
             }
         }
     }
 
-    for (j = 0; j < gCamCount; j++) {
+    for (j = 0; j < gNumPlayers; j++) {
         gLockOnTargetViewPos[j].x = gLockOnTargetViewPos[j].y = 0.f;
         gLockOnTargetViewPos[j].z = 100.0f;
     }
@@ -1825,13 +1834,28 @@ void Display_Update(void) {
         playerPos.y = player->pos.y;
         playerPos.z = player->trueZpos;
 #if MODS_COOP == 1
-        if ((gNumPlayers == 2) && !gVersusMode && (i == 1)) { // co-op: less red light on P2's ship = cyan tint
+        sCoopTint = (gNumPlayers == 2) && !gVersusMode && (i == 1);
+        if (sCoopTint) { // co-op: less red light on P2's ship = cyan tint
             Lights_SetOneLight(&gMasterDisp, gLight2x, gLight2y, gLight2z, (gLight2R * 2) / 5, gLight2G, gLight2B,
                                (gAmbientR * 2) / 5, gAmbientG, gAmbientB);
+            // Display_SetSecondLight relights with light 1 + light 3 in some levels: tint those too
+            sCoopTintSave[0] = gLight1R;
+            sCoopTintSave[1] = gLight3R;
+            sCoopTintSave[2] = gAmbientR;
+            gLight1R = (gLight1R * 2) / 5;
+            gLight3R = (gLight3R * 2) / 5;
+            gAmbientR = (gAmbientR * 2) / 5;
         }
 #endif
         Display_SetSecondLight(&playerPos);
         Display_Player_Update(player, 0);
+#if MODS_COOP == 1
+        if (sCoopTint) {
+            gLight1R = sCoopTintSave[0];
+            gLight3R = sCoopTintSave[1];
+            gAmbientR = sCoopTintSave[2];
+        }
+#endif
         Display_SetupPlayerSfxPos(player);
     }
 

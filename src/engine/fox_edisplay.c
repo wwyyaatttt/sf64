@@ -5,6 +5,7 @@
 
 #include "prevent_bss_reordering.h"
 #include "global.h"
+#include "mods.h"
 #include "sf64object.h"
 #include "assets/ast_katina.h"
 #include "assets/ast_venom_1.h"
@@ -1143,6 +1144,18 @@ void Actor_DrawOnRails(Actor* this) {
                 }
             }
 
+#if MODS_COOP == 1
+            if ((gNumPlayers == 2) && !gVersusMode && (this->lockOnTimers[1] != 0) && (gReflectY > 0)) {
+                Vec3f p2Lock; // co-op: P2's lock-on marker (sp34 is not offset yet)
+
+                p2Lock = sp34;
+                p2Lock.y += this->info.targetOffset;
+                Matrix_MultVec3f(gGfxMatrix, &p2Lock, &gLockOnTargetViewPos[1]);
+                if (gLockOnTargetViewPos[1].z > -200.0f) {
+                    this->lockOnTimers[1] = 0;
+                }
+            }
+#endif
             if ((this->lockOnTimers[TEAM_ID_FOX] != 0) && (gReflectY > 0)) {
                 sp34.y += this->info.targetOffset;
                 Matrix_MultVec3f(gGfxMatrix, &sp34, &gLockOnTargetViewPos[TEAM_ID_FOX]);
@@ -1236,16 +1249,22 @@ void Actor_DrawAllRange(Actor* this) {
 
     if (!sDrewActor) {
         this->lockOnTimers[gPlayerNum] = 0;
+#if MODS_COOP == 1
+        if (gNumPlayers > gCamCount) {
+            this->lockOnTimers[1] = 0; // off the shared screen: P2 loses the lock too
+        }
+#endif
         if ((this->obj.id == OBJ_ACTOR_DEBRIS) || (this->obj.id == OBJ_ACTOR_AND_BRAIN_WASTE)) {
             Object_Kill(&this->obj, this->sfxSource);
         }
     }
 
-    for (playerNum = 0; playerNum < gCamCount; playerNum++) {
+    for (playerNum = 0; playerNum < gNumPlayers; playerNum++) {
         if (this->lockOnTimers[playerNum] != 0) {
             gLockOnTargetViewPos[playerNum] = sViewPos;
             gLockOnTargetViewPos[playerNum].y += this->info.targetOffset;
-            if ((playerNum == gPlayerNum) && (gLockOnTargetViewPos[playerNum].z > -300.0f)) {
+            if (((playerNum == gPlayerNum) || (playerNum >= gCamCount)) &&
+                (gLockOnTargetViewPos[playerNum].z > -300.0f)) {
                 this->lockOnTimers[playerNum] = 0;
             }
         }

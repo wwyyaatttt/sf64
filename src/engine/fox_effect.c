@@ -11,7 +11,8 @@
 /* Family Edition co-op: shots and hazards that hurt Fox also hurt player 2 while P2 is flying.
  * Enemies still aim at Fox; P2 is only hit by stray fire. */
 static bool Coop_P2Flying(void) {
-    return (gNumPlayers == 2) && !gVersusMode && (gPlayer[1].state == PLAYERSTATE_ACTIVE);
+    return (gNumPlayers == 2) && !gVersusMode &&
+           ((gPlayer[1].state == PLAYERSTATE_ACTIVE) || (gPlayer[1].state == PLAYERSTATE_U_TURN));
 }
 
 static void Coop_CheckP2Collision(Effect* effect, f32 scale) {
@@ -35,7 +36,7 @@ static void Coop_EnemyShotVsP2(Effect* this) {
     }
     if ((fabsf(p->trueZpos - this->obj.pos.z) < (50.0f + r)) && (fabsf(p->pos.x - this->obj.pos.x) < (30.0f + r)) &&
         (fabsf(p->pos.y - this->obj.pos.y) < (30.0f + r))) {
-        if (p->barrelRollAlpha != 0) {
+        if ((p->barrelRollAlpha != 0) || (p->meteoWarpTimer != 0)) {
             this->obj.rot.y = 90.0f;
             this->obj.rot.x = RAND_FLOAT(360.0f);
             Matrix_RotateY(gCalcMatrix, this->obj.rot.y * M_DTOR, MTXF_NEW);
@@ -2965,6 +2966,9 @@ void Effect_EnemyShot_Update(Effect* this) {
     }
 #if MODS_COOP == 1
     Coop_EnemyShotVsP2(this);
+    if (this->obj.status != OBJ_ACTIVE) {
+        return; // the shot hit P2, so it can't also hit Fox
+    }
 #endif
 
     if (gPlayer[0].barrelRollAlpha != 0) {
@@ -3106,6 +3110,9 @@ void Effect_Effect398_Update(Effect398* this) {
 
 #if MODS_COOP == 1
             Coop_EnemyShotVsP2(this);
+            if (this->obj.status != OBJ_ACTIVE) {
+                return; // the shot hit P2, so it can't also hit Fox
+            }
 #endif
             if (gPlayer[0].barrelRollAlpha != 0) {
                 var_fa0 = 100.0f;
