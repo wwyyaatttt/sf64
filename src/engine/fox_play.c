@@ -819,7 +819,7 @@ bool Player_CheckAllGoldRings(void) {
 
 void Player_DamageWings(Player* player, s32 side, s32 damage) {
 #if MODS_KID_ASSIST == 1
-    if (!gVersusMode) { /* top the wing up first so a hit bends it but never snaps it off */
+    if (!gVersusMode && Coop_KidMode(player->num)) { /* top the wing up first so a hit bends it but never snaps it off */
         gRightWingHealth[player->num] = gLeftWingHealth[player->num] = 60;
     }
 #endif
@@ -876,7 +876,7 @@ void Player_ApplyDamage(Player* player, s32 direction, s32 damage) {
         player->damage = damage;
     }
 #if MODS_KID_ASSIST == 1
-    if (!gVersusMode) {
+    if (!gVersusMode && Coop_KidMode(player->num)) {
         player->damage /= 2;
     }
 #endif
@@ -2505,6 +2505,18 @@ void Player_FloorCheck(Player* player) {
 
 s32 gNumPlayers = 1;
 
+/*
+ * Family Edition kid mode, per player: half damage, wings never snap off, slow shield regen, no Game Over (Fox),
+ * and for player 2 a quick free respawn. Both ships start in KID mode; hold L ~2 s during a level to switch your
+ * own ship between KID and NORMAL (the HUD shows a "KID" tag and a short message).
+ */
+static s32 sCoopKid[2] = { true, true };
+static s32 sCoopKidHold[2] = { 0, 0 };
+
+s32 Coop_KidMode(s32 num) {
+    return (num >= 0) && (num < 2) && sCoopKid[num];
+}
+
 #if MODS_COOP == 1
 /*
  * Family Edition co-op: player 2 flies a second Arwing (gPlayer[1]) on player 1's screen.
@@ -2529,11 +2541,14 @@ static bool Coop_IsP2(Player* player) {
 }
 
 static s32 sCoopLeaveHold = 0; // frames P2 has held START; ~2 s = leave
+static s32 sCoopRespawnExtra = 0; // NORMAL-mode P2: extra wait after Player_Down's own 120 frames
 
 /* New game (title / main menu): nobody is flying P2 until they press START again. */
 void Coop_Reset(void) {
     sCoopController = -1;
     sCoopLeaveHold = 0;
+    sCoopKid[0] = sCoopKid[1] = true;
+    sCoopKidHold[0] = sCoopKidHold[1] = 0;
     gBombCount[1] = 0;
     gLaserStrength[1] = LASERS_SINGLE;
 }
@@ -2562,10 +2577,28 @@ static void Coop_CheckJoin(void) {
             if (gBombCount[1] < 3) {
                 gBombCount[1] = 3;
             }
-            if (gLaserStrength[1] < LASERS_TWIN) {
+            if (sCoopKid[1] && (gLaserStrength[1] < LASERS_TWIN)) {
                 gLaserStrength[1] = LASERS_TWIN; // a little head start for the helper
             }
             return;
+        }
+    }
+}
+
+/* Hold L ~2 s to switch your own ship between KID and NORMAL: Fox on the main pad, P2 on theirs. */
+static void Coop_UpdateKidToggles(void) {
+    s32 pads[2];
+    s32 i;
+
+    pads[0] = gMainController;
+    pads[1] = sCoopController;
+    for (i = 0; i < 2; i++) {
+        if ((pads[i] >= 0) && (gControllerHold[pads[i]].button & L_TRIG)) {
+            if (++sCoopKidHold[i] == 60) { // flips once per hold; let go to re-arm
+                sCoopKid[i] = !sCoopKid[i];
+            }
+        } else {
+            sCoopKidHold[i] = 0;
         }
     }
 }
@@ -2610,7 +2643,7 @@ static void Coop_SpawnP2(Player* p2) {
 #endif
     p2->damage = p2->heal = 0;
     p2->hitTimer = p2->radioDamageTimer = 0;
-    p2->mercyTimer = 60;
+    p2->mercyTimer = sCoopKid[1] ? 60 : 20;
     p2->alternateView = false;
     p2->csTimer = p2->csEventTimer = 0;
     // don't inherit whatever Fox is in the middle of (loop, barrel roll, boost, knockback, U-turn)
@@ -2659,7 +2692,7 @@ static bool Coop_UpdateP2State(Player* p2) {
 
     if ((p2->state == PLAYERSTATE_ACTIVE) || (p2->state == PLAYERSTATE_U_TURN)) {
 #if MODS_COOP_DEBUG == 1
-        if (sCoopPress.button & L_TRIG) {
+        if (sCoopPress.button & D_JPAD) { // test builds: P2 D-pad down = self-destruct
             p2->shields = 0;
             p2->radioDamageTimer = 1;
         }
@@ -2674,6 +2707,8 @@ static bool Coop_UpdateP2State(Player* p2) {
     if (foxFlying && (p1->state == PLAYERSTATE_ACTIVE)) { // (re)spawn only beside a Fox in level flight
         if (p2->csEventTimer > 0) {
             p2->csEventTimer--;
+        } else if (sCoopRespawnExtra > 0) {
+            sCoopRespawnExtra--;
         } else {
             shields = p2->shields; // > 0 = P2 only waited out a cutscene: keep their shields
             Coop_SpawnP2(p2);
@@ -2745,7 +2780,7 @@ static void Coop_TetherP2(Player* p2) {
 
     if (sPlayersVisible[1]) {
         sCoopOffscreenFrames = 0;
-    } else if (++sCoopOffscreenFrames >= 120) {
+    } else if (++sCoopOffscreenFrames >= (sCoopKid[1] ? 120 : 240)) {
         sCoopOffscreenFrames = 0;
         shields = p2->shields;
         Coop_SpawnP2(p2);
@@ -2778,6 +2813,13 @@ static void Coop_P2Down(Player* p2) {
     p2->draw = false;
     p2->shields = 0;
     p2->csEventTimer = 120; // ~4 s (the Arwing callers of Player_Down also set 120 right after this returns)
+    sCoopRespawnExtra = 0;
+    if (!sCoopKid[1]) { // NORMAL: twice the wait, and it costs the team a life (Fox's KID mode keeps lives >= 2)
+        sCoopRespawnExtra = 120;
+        if (gLifeCount[0] > 0) {
+            gLifeCount[0]--;
+        }
+    }
 }
 #endif
 
@@ -5788,14 +5830,14 @@ void Player_UpdateShields(Player* player) {
         }
     }
 #if MODS_KID_ASSIST == 1
-    if (!gVersusMode) {
+    if (!gVersusMode && Coop_KidMode(player->num)) {
         if ((player->damage == 0) && (player->shields > 0) && (player->shields < Play_GetMaxShields()) &&
             ((gGameFrameCount & 7) == 0)) {
             player->shields++; /* slow recharge while not being hit */
         }
-        if (gLifeCount[0] < 2) {
-            gLifeCount[0] = 2; /* never a Game Over */
-        }
+    }
+    if (!gVersusMode && Coop_KidMode(0) && (gLifeCount[0] < 2)) {
+        gLifeCount[0] = 2; /* never a Game Over while Fox is in kid mode */
     }
 #endif
 }
@@ -7268,12 +7310,19 @@ void Play_Update(void) {
         gInputPress = &gControllerPress[gMainController];
         gControllerRumble = &gControllerRumbleFlags[gMainController];
     }
+    if (!gVersusMode) {
+        Coop_UpdateKidToggles(); // hold L ~2 s: KID / NORMAL for your own ship
+    }
 #endif
 #if MODS_COOP_DEBUG == 1
-    if ((gControllerPress[gMainController].button & L_TRIG) && (gPlayer[0].state == PLAYERSTATE_ACTIVE)) {
+    if ((gControllerPress[gMainController].button & U_JPAD) && (gPlayer[0].state == PLAYERSTATE_ACTIVE)) {
         gMissionStatus = MISSION_ACCOMPLISHED;
         gPlayer[0].state = PLAYERSTATE_LEVEL_COMPLETE;
         gPlayer[0].csState = 0;
+    }
+    if ((gControllerPress[gMainController].button & D_JPAD) && (gPlayer[0].state == PLAYERSTATE_ACTIVE)) {
+        gPlayer[0].shields = 0; // P1 D-pad down: Fox goes down (2: Player_UpdateEffects decrements it first)
+        gPlayer[0].radioDamageTimer = 2;
     }
 #endif
 

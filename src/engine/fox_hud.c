@@ -3648,6 +3648,9 @@ static void Coop_P2Hud_Draw(void) {
     RCP_SetupDL(&gMasterDisp, SETUPDL_83);
     gDPSetPrimColor(gMasterDisp++, 0, 0, 80, 255, 80, 255);
     Graphics_DisplaySmallText(x + 66.0f, y + 3.0f, 1.0f, 1.0f, "2P");
+    if (Coop_KidMode(1)) {
+        Graphics_DisplaySmallText(x + 66.0f, y + 13.0f, 1.0f, 1.0f, "KID");
+    }
 
     if (gBombCount[1] > 9) {
         gBombCount[1] = 9;
@@ -3659,6 +3662,38 @@ static void Coop_P2Hud_Draw(void) {
         RCP_SetupDL(&gMasterDisp, SETUPDL_83);
         gDPSetPrimColor(gMasterDisp++, 0, 0, 255, 255, 255, 255);
         Graphics_DisplaySmallNumber(x + 100.0f, y + 3.0f, gBombCount[1]);
+    }
+}
+
+/* "KID" beside Fox's shield gauge while Fox is in kid mode, and a short message whenever either player flips. */
+static s32 sCoopKidSeen[2] = { -1, -1 };
+static s32 sCoopKidMsgTimer = 0;
+static char* sCoopKidMsg = "";
+
+static void Coop_KidTags_Draw(void) {
+    static char* sMsgs[] = { "1P KID MODE OFF", "1P KID MODE ON", "2P KID MODE OFF", "2P KID MODE ON" };
+    s32 i;
+    s32 kid;
+
+    if (gVersusMode) {
+        return;
+    }
+    for (i = 0; i < 2; i++) {
+        kid = Coop_KidMode(i);
+        if ((sCoopKidSeen[i] >= 0) && (kid != sCoopKidSeen[i])) {
+            sCoopKidMsg = sMsgs[(i * 2) + kid];
+            sCoopKidMsgTimer = 90;
+        }
+        sCoopKidSeen[i] = kid;
+    }
+    RCP_SetupDL(&gMasterDisp, SETUPDL_83);
+    gDPSetPrimColor(gMasterDisp++, 0, 0, 80, 255, 80, 255);
+    if (Coop_KidMode(0)) {
+        Graphics_DisplaySmallText(126, 33, 1.0f, 1.0f, "KID");
+    }
+    if (sCoopKidMsgTimer > 0) {
+        sCoopKidMsgTimer--;
+        Graphics_DisplaySmallText(96, 110, 1.0f, 1.0f, sCoopKidMsg);
     }
 }
 #endif
@@ -3680,6 +3715,7 @@ void HUD_SinglePlayer(void) {
         HUD_Shield_GoldRings_Score(24.0f, 30.0f);
 #if MODS_COOP == 1
         Coop_P2Hud_Draw();
+        Coop_KidTags_Draw();
 #endif
         if (gCurrentLevel != LEVEL_TRAINING) {
             HUD_LivesCount2_Draw(248.0f, 11.0f, gLifeCount[gPlayerNum]);
