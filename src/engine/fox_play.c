@@ -7381,6 +7381,7 @@ void Play_Update(void) {
     }
     if (gControllerPress[gMainController].button & L_JPAD) { // P1 D-pad left: the active boss dies to the next hit
         s32 bi;
+#define CHEAT_GUARD 0
 
         for (bi = 0; bi < ARRAY_COUNT(gBosses); bi++) {
             if (gBosses[bi].obj.status == OBJ_ACTIVE) {
@@ -7396,6 +7397,9 @@ void Play_Update(void) {
                 }
                 if (gBosses[bi].obj.id == OBJ_BOSS_AND_ANDROSS) {
                     gBosses[bi].swork[4] = gBosses[bi].swork[5] = -1; // Andross: both hands gone
+                }
+                if (CHEAT_GUARD && (gBosses[bi].health <= 0)) {
+                    continue; // already dying: re-running a death handler is something the real game never does
                 }
                 gBosses[bi].health = 1;
                 gBosses[bi].dmgType = DMG_BEAM;

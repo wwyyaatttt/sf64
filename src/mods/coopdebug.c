@@ -6,7 +6,7 @@
  * Row BST: boostMeter, boostCooldown, U-turn brake/down timers (P1, then P2).
  * Row CAM: |P1 cam.eye.x| |P1 cam.eye.y| |P1 xPath| gPlayerNum gMainController. */
 extern s32 gCoopGfxPeak[6]; // sys_main.c (test builds): graphics pool peaks
-extern s32 gCoopDlBad[8];   // sys_main.c (test builds): display-list validator (count, op, w0, w1, frame, depth, index)
+extern s32 gCoopDlBad[12];  // sys_main.c (test builds): display-list validator (count, op, w0, w1, frame, depth, index, call chain)
 #if MODS_COOP == 1
 extern s32 gCoopLog[8][4]; // fox_play.c (co-op): last events, oldest first from gCoopLogN
 extern s32 gCoopLogN;
@@ -14,6 +14,33 @@ extern s32 gCoopLogN;
 static s32 gCoopLog[8][4];
 static s32 gCoopLogN = 0;
 #endif
+
+static s32 sCoopNan[4]; // count, player, byte offset, game frame of the first NaN/inf seen in a Player struct
+
+/* Scan both players' float fields (positions, camera, rotations, joints, ...) for NaN / infinity. */
+static void Coop_NanCheck(void) {
+    static const u16 ranges[][2] = { { 0x000, 0x198 }, { 0x248, 0x260 }, { 0x2BC, 0x2C4 }, { 0x2C8, 0x478 }, { 0x4D8, 0x4DC } };
+    s32 i;
+    s32 r;
+    u32 off;
+
+    for (i = 0; i < gNumPlayers; i++) {
+        for (r = 0; r < ARRAY_COUNT(ranges); r++) {
+            for (off = ranges[r][0]; off < ranges[r][1]; off += 4) {
+                u32 bits = *(u32*) ((u8*) &gPlayer[i] + off);
+
+                if ((bits & 0x7F800000) == 0x7F800000) { // exponent all ones: NaN or +-inf
+                    if (sCoopNan[0]++ == 0) {
+                        sCoopNan[1] = i;
+                        sCoopNan[2] = off;
+                        sCoopNan[3] = gGameFrameCount;
+                    }
+                    return;
+                }
+            }
+        }
+    }
+}
 
 void Coop_DrawDebug(void) {
     s32 i;
@@ -24,6 +51,7 @@ void Coop_DrawDebug(void) {
     if ((gGameState != GSTATE_PLAY) || (gDrawMode != DRAW_PLAY) || (gPlayer == NULL)) {
         return;
     }
+    Coop_NanCheck();
     RCP_SetupDL(&gMasterDisp, SETUPDL_83);
     gDPSetPrimColor(gMasterDisp++, 0, 0, 255, 255, 0, 255);
     for (i = 0; i < gNumPlayers; i++) {
@@ -99,6 +127,26 @@ void Coop_DrawDebug(void) {
         Graphics_DisplaySmallNumber(224, 143, gCoopDlBad[2] & 0xFFFF);
         Graphics_DisplaySmallNumber(258, 143, (gCoopDlBad[3] >> 16) & 0xFFFF);
         Graphics_DisplaySmallNumber(292, 143, gCoopDlBad[3] & 0xFFFF);
+        // DL: the G_DL calls that led to the bad list: target address at depth 0 (hi, lo) + its index in the master
+        // list, then the same for depth 1; last: the full game frame
+        Graphics_DisplaySmallText(190, 152, 1.0f, 1.0f, "DL");
+        Graphics_DisplaySmallNumber(206, 152, (gCoopDlBad[7] >> 16) & 0xFFFF);
+        Graphics_DisplaySmallNumber(236, 152, gCoopDlBad[7] & 0xFFFF);
+        Graphics_DisplaySmallNumber(270, 152, gCoopDlBad[8]);
+        Graphics_DisplaySmallNumber(206, 161, (gCoopDlBad[9] >> 16) & 0xFFFF);
+        Graphics_DisplaySmallNumber(236, 161, gCoopDlBad[9] & 0xFFFF);
+        Graphics_DisplaySmallNumber(270, 161, gCoopDlBad[10]);
+        Graphics_DisplaySmallNumber(294, 161, gCoopDlBad[4]);
+        gDPSetPrimColor(gMasterDisp++, 0, 0, 255, 255, 0, 255);
+    }
+    // NAN: NaN / infinity found in a Player struct: count, player, byte offset, game frame (overlay in red)
+    if (sCoopNan[0] != 0) {
+        gDPSetPrimColor(gMasterDisp++, 0, 0, 255, 80, 80, 255);
+        Graphics_DisplaySmallText(190, 170, 1.0f, 1.0f, "NAN");
+        Graphics_DisplaySmallNumber(214, 170, sCoopNan[0]);
+        Graphics_DisplaySmallNumber(246, 170, sCoopNan[1]);
+        Graphics_DisplaySmallNumber(262, 170, sCoopNan[2]);
+        Graphics_DisplaySmallNumber(294, 170, sCoopNan[3] % 10000);
         gDPSetPrimColor(gMasterDisp++, 0, 0, 255, 255, 0, 255);
     }
 }

@@ -57,7 +57,8 @@ Gfx* gUnkDisp2;
 Lightsn* gLight;
 #if MODS_COOP_DEBUG == 1
 extern s32 gGameFrameCount;
-s32 gCoopDlBad[8]; // count, first bad: opcode, w0, w1, game frame, depth, index in its list, 0
+s32 gCoopDlBad[12]; // count, first bad: opcode, w0, w1, game frame, depth, index in its list; [7..10] = the G_DL chain
+                    // that led there: w1 of the call at depth 0, its index, w1 of the call at depth 1, its index
 static u32 sCoopSeg[16];
 
 static s32 Coop_DlOpKnown(u32 op) {
@@ -68,6 +69,9 @@ static s32 Coop_DlOpKnown(u32 op) {
     return 0;
 }
 
+static u32 sCoopDlCallW1[16]; // the G_DL command (w1) and its index being followed at each depth
+static s32 sCoopDlCallIdx[16];
+
 static void Coop_DlRecord(u32 op, u32 w0, u32 w1, s32 depth, s32 idx) {
     if (gCoopDlBad[0]++ == 0) {
         gCoopDlBad[1] = op;
@@ -76,6 +80,10 @@ static void Coop_DlRecord(u32 op, u32 w0, u32 w1, s32 depth, s32 idx) {
         gCoopDlBad[4] = gGameFrameCount;
         gCoopDlBad[5] = depth;
         gCoopDlBad[6] = idx;
+        gCoopDlBad[7] = (depth > 0) ? sCoopDlCallW1[0] : 0;
+        gCoopDlBad[8] = (depth > 0) ? sCoopDlCallIdx[0] : 0;
+        gCoopDlBad[9] = (depth > 1) ? sCoopDlCallW1[1] : 0;
+        gCoopDlBad[10] = (depth > 1) ? sCoopDlCallIdx[1] : 0;
     }
 }
 
@@ -123,6 +131,8 @@ static s32 Coop_DlWalk(u32* dl, s32 depth) {
                     dl[0] = dl[1] = 0;
                     bad = 1;
                 } else if (((w0 >> 16) & 0xFF) == 0) { // push = call
+                    sCoopDlCallW1[depth] = w1;
+                    sCoopDlCallIdx[depth] = n;
                     if (Coop_DlWalk((u32*) (0x80000000 | phys), depth + 1)) {
                         dl[0] = dl[1] = 0;
                         bad = 1;

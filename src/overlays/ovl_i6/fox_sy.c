@@ -1410,6 +1410,10 @@ void SectorY_SyShogun_Update(SyShogun* this) {
     s32 pad;
 
     if (gPlayer[0].state != PLAYERSTATE_START_360) {
+        if (gScenery360[SHOGUN_SHIP].info.drawType != 0) { // Family Edition: the ship's info holds an empty draw *function*
+            gScenery360[SHOGUN_SHIP].info.dList = aSySaruzinDL; // until the 2nd part dies; the level-end fly-off can draw it
+            gScenery360[SHOGUN_SHIP].info.drawType = 0;         // before that (Shogun killed first) -> code fed to the RSP
+        }
         if (this->swork[34] == 1) {
             if (this->health > 0) {
                 gScenery360[SHOGUN_SHIP].obj.pos.z += 20.0f;
