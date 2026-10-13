@@ -1057,7 +1057,9 @@ void PlayerShot_CollisionCheck(PlayerShot* shot) {
                         }
                         boss->dmgPart = colResult - 1;
 #if MODS_COOP_DEBUG == 1
-                        boss->damage *= 10;
+                        if (gCurrentLevel != LEVEL_AQUAS) { // Aquas' boss only counts hits of exactly 31 (torpedo)
+                            boss->damage *= 10;
+                        }
 #endif
                         if (boss->obj.id == OBJ_BOSS_AQ_UNK_301) {
                             boss->swork[5] = shot->obj.id;

@@ -2511,7 +2511,53 @@ s32 gNumPlayers = 1;
  * own ship between KID and NORMAL (the HUD shows a "KID" tag and a short message).
  */
 static s32 sCoopKid[2] = { true, true };
-static s32 sCoopKidHold[2] = { 0, 0 };
+
+/* Real-time hold timer: "hold for 2 s" is measured with osGetTime, not game frames, so it feels the same in slow
+ * levels (Aquas, two Landmasters: ~12-20 game frames/s) as in fast ones. A gap of more than 1 s between checks
+ * (pause, a cutscene where nothing checks) restarts the hold, and it fires only once per press. */
+typedef struct {
+    OSTime start;
+    OSTime last;
+    s32 fired;
+} CoopHold;
+#if MODS_COOP_DEBUG == 1
+s32 gCoopHoldDbg[3]; // test overlay: ms held, longest gap between checks (ms), gap restarts
+#endif
+
+static s32 Coop_HoldFor(CoopHold* h, s32 held, u32 usec) {
+    OSTime now = osGetTime();
+
+    if (!held) {
+        h->start = 0;
+        h->fired = false;
+        return false;
+    }
+#if MODS_COOP_DEBUG == 1
+    if ((h->start != 0) && ((s32) (OS_CYCLES_TO_USEC(now - h->last) / 1000) > gCoopHoldDbg[1])) {
+        gCoopHoldDbg[1] = (s32) (OS_CYCLES_TO_USEC(now - h->last) / 1000); // longest gap within a hold, ms
+    }
+#endif
+    if ((h->start == 0) || (OS_CYCLES_TO_USEC(now - h->last) > 1000000)) {
+#if MODS_COOP_DEBUG == 1
+        if (h->start != 0) {
+            gCoopHoldDbg[2]++; // restarts caused by a long gap between checks
+        }
+#endif
+        h->start = now;
+        h->fired = false;
+    }
+#if MODS_COOP_DEBUG == 1
+    gCoopHoldDbg[0] = (s32) (OS_CYCLES_TO_USEC(now - h->start) / 1000); // ms held so far (last hold checked)
+#endif
+    h->last = now;
+    if (!h->fired && (OS_CYCLES_TO_USEC(now - h->start) >= usec)) {
+        h->fired = true;
+        return true;
+    }
+    return false;
+}
+
+static CoopHold sCoopKidHold[2];
 
 s32 Coop_KidMode(s32 num) {
     return (num >= 0) && (num < 2) && sCoopKid[num];
@@ -2557,15 +2603,14 @@ static bool Coop_IsP2(Player* player) {
     return (gNumPlayers == 2) && (player->num == 1);
 }
 
-static s32 sCoopLeaveHold = 0; // frames P2 has held START; ~2 s = leave
+static CoopHold sCoopLeaveHold; // P2 holding START: 2 s = leave
 static s32 sCoopRespawnExtra = 0; // NORMAL-mode P2: extra wait after Player_Down's own 120 frames
 
 /* New game (title / main menu): nobody is flying P2 until they press START again. */
 void Coop_Reset(void) {
     sCoopController = -1;
-    sCoopLeaveHold = 0;
+    sCoopLeaveHold.start = sCoopKidHold[0].start = sCoopKidHold[1].start = 0;
     sCoopKid[0] = sCoopKid[1] = true;
-    sCoopKidHold[0] = sCoopKidHold[1] = 0;
     gBombCount[1] = 0;
     gLaserStrength[1] = LASERS_SINGLE;
 }
@@ -2577,14 +2622,9 @@ static void Coop_CheckJoin(void) {
         sCoopController = -1; // unplugged: back to waiting
     }
     if (sCoopController >= 0) {
-        // P2 leaves by holding START ~2 s (a tap does nothing, so a young pilot can't drop out by accident)
-        if (gControllerHold[sCoopController].button & START_BUTTON) {
-            if (++sCoopLeaveHold >= 60) {
-                sCoopLeaveHold = 0;
-                sCoopController = -1;
-            }
-        } else {
-            sCoopLeaveHold = 0;
+        // P2 leaves by holding START 2 s (a tap does nothing, so a young pilot can't drop out by accident)
+        if (Coop_HoldFor(&sCoopLeaveHold, gControllerHold[sCoopController].button & START_BUTTON, 2000000)) {
+            sCoopController = -1;
         }
         return;
     }
@@ -2610,12 +2650,9 @@ static void Coop_UpdateKidToggles(void) {
     pads[0] = gMainController;
     pads[1] = sCoopController;
     for (i = 0; i < 2; i++) {
-        if ((pads[i] >= 0) && (gControllerHold[pads[i]].button & L_TRIG)) {
-            if (++sCoopKidHold[i] == 60) { // flips once per hold; let go to re-arm
-                sCoopKid[i] = !sCoopKid[i];
-            }
-        } else {
-            sCoopKidHold[i] = 0;
+        // flips once per 2 s hold; let go to re-arm
+        if (Coop_HoldFor(&sCoopKidHold[i], (pads[i] >= 0) && (gControllerHold[pads[i]].button & L_TRIG), 2000000)) {
+            sCoopKid[i] = !sCoopKid[i];
         }
     }
 }
@@ -7428,6 +7465,54 @@ void Play_Update(void) {
                 gBosses[bi].dmgType = DMG_BEAM;
                 gBosses[bi].dmgPart = 1; // Andross face takes parts 0/1, the brain parts 1/2
                 gBosses[bi].damage = 100;
+            }
+        }
+    }
+    {
+        // P1 D-pad right: "spray" for ~30 s - every frame each active boss takes a strong beam hit on one of its live
+        // hitbox parts (cycling through them), exactly like a player shot landing there. Kills bosses whose health
+        // lives in per-part counters (Meteo, Sector X, Area 6, Zoness, ...), so their defeat cutscenes can be tested.
+        static s32 sCheatSpray = 0;
+        s32 bi;
+        s32 j;
+        s32 count;
+        s32 want;
+        f32* hb;
+
+        if (gControllerPress[gMainController].button & R_JPAD) {
+            sCheatSpray = 1800; // ~60 s
+        }
+        if ((sCheatSpray > 0) && (gPlayer[0].state != PLAYERSTATE_ACTIVE) && (gPlayer[0].state != PLAYERSTATE_U_TURN)) {
+            sCheatSpray = 0; // stop once the level ends / Fox is in a cutscene
+        }
+        if (sCheatSpray > 0) {
+            sCheatSpray--;
+            for (bi = 0; bi < ARRAY_COUNT(gBosses); bi++) {
+                if ((gBosses[bi].obj.status != OBJ_ACTIVE) || (gBosses[bi].timer_05A != 0) ||
+                    (gBosses[bi].dmgType != DMG_NONE) || (gBosses[bi].info.hitbox == NULL)) {
+                    continue;
+                }
+                hb = gBosses[bi].info.hitbox;
+                count = *hb++;
+                if (count <= 0) {
+                    continue; // no hitbox (e.g. dying): real shots can't land either
+                }
+                want = (gGameFrameCount / 2) % count;
+                for (j = 0; j < count; j++, hb += 6) {
+                    if (hb[0] == HITBOX_ROTATED) {
+                        hb += 4;
+                    }
+                    if (j == want) {
+                        if ((hb[1] > -100.0f) && (hb[3] > -100.0f)) { // part not switched off
+                            // alternate laser and bomb hits: some bosses only take bombs on some parts (Zoness,
+                            // Titania); Aquas' Bacoon only counts torpedo-sized hits (damage 31)
+                            gBosses[bi].dmgType = ((gGameFrameCount / 2) % 2) ? DMG_BOMB : DMG_BEAM;
+                            gBosses[bi].dmgPart = j;
+                            gBosses[bi].damage = (gCurrentLevel == LEVEL_AQUAS) ? 31 : 100;
+                        }
+                        break;
+                    }
+                }
             }
         }
     }

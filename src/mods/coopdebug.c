@@ -6,6 +6,7 @@
  * Row BST: boostMeter, boostCooldown, U-turn brake/down timers (P1, then P2).
  * Row CAM: |P1 cam.eye.x| |P1 cam.eye.y| |P1 xPath| gPlayerNum gMainController. */
 extern s32 gCoopGfxPeak[6]; // sys_main.c (test builds): graphics pool peaks
+extern s32 gCoopHoldDbg[3]; // fox_play.c (test builds): hold timer ms, longest gap ms, restarts
 extern s32 gCoopDlBad[12];  // sys_main.c (test builds): display-list validator (count, op, w0, w1, frame, depth, index, call chain)
 #if MODS_COOP == 1
 extern s32 gCoopLog[8][4]; // fox_play.c (co-op): last events, oldest first from gCoopLogN
@@ -48,8 +49,24 @@ void Coop_DrawDebug(void) {
     Player* p;
     static char* sEvNames[] = { "", "PARK", "SPWN", "DOWN", "RGRP", "FOX" };
 
+    static OSTime sFpsT0 = 0;
+    static s32 sFpsFrames = 0;
+    static s32 sFps = 0;
+    OSTime now;
+
     if ((gGameState != GSTATE_PLAY) || (gDrawMode != DRAW_PLAY) || (gPlayer == NULL)) {
         return;
+    }
+    // game frames per second (game logic rate, not the 60 Hz video rate)
+    now = osGetTime();
+    sFpsFrames++;
+    if ((sFpsT0 == 0) || (OS_CYCLES_TO_USEC(now - sFpsT0) > 3000000)) {
+        sFpsT0 = now;
+        sFpsFrames = 0;
+    } else if (OS_CYCLES_TO_USEC(now - sFpsT0) >= 1000000) {
+        sFps = sFpsFrames;
+        sFpsFrames = 0;
+        sFpsT0 = now;
     }
     Coop_NanCheck();
     RCP_SetupDL(&gMasterDisp, SETUPDL_83);
@@ -75,6 +92,15 @@ void Coop_DrawDebug(void) {
         Graphics_DisplaySmallNumber(140, y, gControllerHold[i].stick_y + 100);
         Graphics_DisplaySmallNumber(180, y, gControllerPlugged[i]);
     }
+    Graphics_DisplaySmallText(14, 160, 1.0f, 1.0f, "FPS");
+    Graphics_DisplaySmallNumber(40, 160, sFps);
+    // emulated clock in tenths of a second (compare with screenshot wall-clock times to see emulator speed)
+    Graphics_DisplaySmallText(70, 160, 1.0f, 1.0f, "T");
+    Graphics_DisplaySmallNumber(80, 160, (s32) (OS_CYCLES_TO_USEC(now) / 100000));
+    Graphics_DisplaySmallText(130, 160, 1.0f, 1.0f, "H");
+    Graphics_DisplaySmallNumber(140, 160, gCoopHoldDbg[0]);
+    Graphics_DisplaySmallNumber(180, 160, gCoopHoldDbg[1]);
+    Graphics_DisplaySmallNumber(214, 160, gCoopHoldDbg[2]);
     Graphics_DisplaySmallText(14, 210, 1.0f, 1.0f, "CAM");
     Graphics_DisplaySmallNumber(40, 210, (s32) fabsf(gPlayer[0].cam.eye.x));
     Graphics_DisplaySmallNumber(80, 210, (s32) fabsf(gPlayer[0].cam.eye.y));
