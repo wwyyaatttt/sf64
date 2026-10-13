@@ -5,6 +5,7 @@
  */
 
 #include "global.h"
+#include "mods.h"
 #include "assets/ast_bg_planet.h"
 #include "assets/ast_solar.h"
 #include "actordebris.h"
@@ -756,6 +757,9 @@ void Solar_SoFlare_Update(EffectSoFlare* this) {
 
             if (gPlayer[0].state != PLAYERSTATE_LEVEL_COMPLETE) {
                 Effect_CheckPlayerCollision(&gPlayer[0], this, this->scale2 * 12.0f);
+#if MODS_COOP == 1
+                Coop_P2Collision(this, this->scale2 * 12.0f);
+#endif
             }
 
             if (this->orient.x > 190.0f) {
@@ -835,6 +839,9 @@ void Solar_SoFlare_Update(EffectSoFlare* this) {
 
             if (gPlayer[0].state != PLAYERSTATE_LEVEL_COMPLETE) {
                 Effect_CheckPlayerCollision(&gPlayer[0], this, this->scale2 * 12.0f);
+#if MODS_COOP == 1
+                Coop_P2Collision(this, this->scale2 * 12.0f);
+#endif
             }
 
             if (this->obj.pos.y < -20.0f) {
@@ -885,6 +892,9 @@ void Solar_SoFlare_Update(EffectSoFlare* this) {
 
             if (gPlayer[0].state != PLAYERSTATE_LEVEL_COMPLETE) {
                 Effect_CheckPlayerCollision(&gPlayer[0], this, this->scale2 * 18.0f);
+#if MODS_COOP == 1
+                Coop_P2Collision(this, this->scale2 * 18.0f);
+#endif
                 if ((this->unk_4C == 0) && ((this->scale2 >= 9.8f) || (this->scale2 <= 4.4f))) {
                     AUDIO_PLAY_SFX(NA_SE_EN_SOBOSS_BREATH, this->sfxSource, 4);
                 }
@@ -913,6 +923,9 @@ void Solar_SoFlare_Update(EffectSoFlare* this) {
 
             if (gPlayer[0].state != PLAYERSTATE_LEVEL_COMPLETE) {
                 Effect_CheckPlayerCollision(&gPlayer[0], this, this->scale2 * 18.0f);
+#if MODS_COOP == 1
+                Coop_P2Collision(this, this->scale2 * 18.0f);
+#endif
                 if ((this->unk_4C == 0) && ((this->scale2 >= 9.8f) || (this->scale2 <= 4.4f))) {
                     AUDIO_PLAY_SFX(NA_SE_EN_SOBOSS_BREATH, this->sfxSource, 4);
                 }

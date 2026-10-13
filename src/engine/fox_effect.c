@@ -21,6 +21,14 @@ static void Coop_CheckP2Collision(Effect* effect, f32 scale) {
     }
 }
 
+void Coop_P2Collision(Effect* effect, f32 scale) { // for level overlays
+    Coop_CheckP2Collision(effect, scale);
+}
+
+s32 Coop_P2IsFlying(void) {
+    return Coop_P2Flying();
+}
+
 /* Same rules as Fox's block in Effect_EnemyShot_Update: barrel roll deflects, otherwise damage + knockback. */
 static void Coop_EnemyShotVsP2(Effect* this) {
     Player* p = &gPlayer[1];

@@ -5,6 +5,7 @@
  */
 
 #include "global.h"
+#include "mods.h"
 #include "assets/ast_meteo.h"
 
 Vec3f D_i2_80195430[] = {
@@ -613,6 +614,9 @@ void Meteo_Effect369_Update(Effect369* this) {
     }
 
     Effect_CheckPlayerCollision(&gPlayer[0], this, 90.0f);
+#if MODS_COOP == 1
+    Coop_P2Collision(this, 90.0f);
+#endif
 }
 
 void Meteo_Effect370_Setup2(Effect370* this, f32 x, f32 y, f32 z, f32 xRot, f32 yRot, f32 zRot, f32 scale) {
@@ -677,6 +681,9 @@ void Meteo_Effect370_Update(Effect370* this) {
         }
     }
     Effect_CheckPlayerCollision(&gPlayer[0], this, 60.0f);
+#if MODS_COOP == 1
+    Coop_P2Collision(this, 60.0f);
+#endif
 }
 
 void Meteo_Effect371_Update(Effect371* this) {
@@ -719,6 +726,9 @@ void Meteo_Effect371_Update(Effect371* this) {
     }
 
     Effect_CheckPlayerCollision(&gPlayer[0], this, 100.0f);
+#if MODS_COOP == 1
+    Coop_P2Collision(this, 100.0f);
+#endif
 }
 
 void Meteo_801892F0(MeCrusher* this, s32 dmgPart) {

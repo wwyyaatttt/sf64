@@ -1,6 +1,7 @@
 
 // #include "prevent_bss_reordering.h"
 #include "global.h"
+#include "mods.h"
 #include "assets/ast_venom_2.h"
 #include "assets/ast_andross.h"
 #include "assets/ast_arwing.h"
@@ -769,6 +770,16 @@ void Andross_AndExplosion_Update(AndExplosion* this) {
             gPlayer[0].radioDamageTimer = 200;
         }
     }
+#if MODS_COOP == 1
+    if (Coop_P2IsFlying() && (fabsf(this->obj.pos.x - gPlayer[1].pos.x) < 500.0f) &&
+        (fabsf(this->obj.pos.z - gPlayer[1].trueZpos) < 500.0f)) {
+        gPlayer[1].shields = 0; // shields 0 + radio timer = P2 goes down (and respawns), like Fox's instant kill
+        gRightWingHealth[1] = gLeftWingHealth[1] = 0;
+        Player_ApplyDamage(&gPlayer[1], 1, 60);
+        Player_ApplyDamage(&gPlayer[1], 2, 60);
+        gPlayer[1].radioDamageTimer = 200;
+    }
+#endif
     if (this->timer_0BC == 1) {
         Cutscene_KillPlayer(&gPlayer[0]);
     }
@@ -1626,6 +1637,9 @@ void Andross_AndSuction_Update(EffectAndSuction* this) {
                 Math_SmoothStepToF(&this->vel.z, 70.0f, 0.05f, 2.0f, 0);
 
                 Effect_CheckPlayerCollision(&gPlayer[0], this, 100.0f);
+#if MODS_COOP == 1
+                Coop_P2Collision(this, 100.0f);
+#endif
 
                 if (this->alpha != 0) {
                     Effect_FireSmoke1_Spawn4(this->obj.pos.x, this->obj.pos.y, this->obj.pos.z, 10.0f);
@@ -1638,6 +1652,9 @@ void Andross_AndSuction_Update(EffectAndSuction* this) {
 
         case 1:
             Effect_CheckPlayerCollision(&gPlayer[0], this, 100.0f);
+#if MODS_COOP == 1
+            Coop_P2Collision(this, 100.0f);
+#endif
             if (this->alpha != 0) {
                 Effect_FireSmoke1_Spawn4(this->obj.pos.x, this->obj.pos.y, this->obj.pos.z, 10.0f);
                 Effect_TimedSfx_Spawn(&this->obj.pos, NA_SE_EN_EXPLOSION_S);
@@ -1709,6 +1726,12 @@ void Andross_LightningAttack(AndAndross* this) {
         (fabsf(this->vwork[10].y - gPlayer[0].pos.y) < 700.0f)) {
         Player_ApplyDamage(&gPlayer[0], 0, 40);
     }
+#if MODS_COOP == 1
+    if (Coop_P2IsFlying() && (gPlayer[1].mercyTimer == 0) && (fabsf(this->vwork[10].x - gPlayer[1].pos.x) < 700.0f) &&
+        (fabsf(this->vwork[10].y - gPlayer[1].pos.y) < 700.0f)) {
+        Player_ApplyDamage(&gPlayer[1], 0, 40);
+    }
+#endif
 }
 
 void Andross_AndAndross_Init(AndAndross* this) {

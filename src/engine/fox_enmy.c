@@ -3142,6 +3142,27 @@ void TexturedLine_Update(TexturedLine* this) {
                 }
             }
         }
+#if MODS_COOP == 1
+        if (((this->mode == 1) || (this->mode == 101) || (this->mode == 50)) && Coop_P2IsFlying() &&
+            (gPlayer[1].hitTimer == 0)) { // co-op: the same line check against player 2
+            Matrix_RotateX(gCalcMatrix, -this->xRot, MTXF_NEW);
+            Matrix_RotateY(gCalcMatrix, -this->yRot, MTXF_APPLY);
+            sp44.x = gPlayer[1].pos.x - this->posAA.x;
+            sp44.y = gPlayer[1].pos.y - this->posAA.y;
+            sp44.z = gPlayer[1].trueZpos - this->posAA.z;
+            Matrix_MultVec3fNoTranslate(gCalcMatrix, &sp44, &sp38);
+            sp38.x += this->posAA.x;
+            sp38.y += this->posAA.y;
+            sp38.z += this->posAA.z;
+            if ((fabsf(sp38.x - this->posAA.x) < 30.0f) && (fabsf(sp38.y - this->posAA.y) < 30.0f) &&
+                (sp38.z < this->posAA.z) && ((this->posAA.z - this->zScale) < sp38.z)) {
+                Player_ApplyDamage(&gPlayer[1], 0, (gCurrentLevel == LEVEL_AQUAS) ? 30 : 20);
+                if (this->mode < 100) {
+                    this->mode = 0;
+                }
+            }
+        }
+#endif
 
         if (((this->posAA.z + gPathProgress) > 1000.0f) && (gLevelMode != LEVELMODE_ALL_RANGE)) {
             this->mode = 0;

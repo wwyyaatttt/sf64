@@ -23,6 +23,8 @@ extern s32 gCamCount;
 s32 Coop_P2Controller(void); // Family co-op: controller flying player 2, -1 if nobody joined
 void Coop_Reset(void);       // Family co-op: forget player 2 (title / main menu)
 s32 Coop_KidMode(s32 num);   // Family Edition: 1 = kid mode for player num (hold L ~2 s to switch)
+void Coop_P2Collision(Effect* effect, f32 scale); // Family co-op: effect-vs-player-2 damage check
+s32 Coop_P2IsFlying(void);   // Family co-op: player 2 is in the air (ACTIVE or U-turn)
 extern s32 gNumPlayers; // players being updated/drawn (Versus 4, Family co-op 2); gCamCount = viewports
 extern s32 gTeamShields[6];
 extern s32 gSavedTeamShields[6];

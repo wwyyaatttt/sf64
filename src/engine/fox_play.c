@@ -7358,6 +7358,16 @@ void Play_Update(void) {
 
         for (bi = 0; bi < ARRAY_COUNT(gBosses); bi++) {
             if (gBosses[bi].obj.status == OBJ_ACTIVE) {
+                if (gBosses[bi].obj.id == OBJ_BOSS_AND_BRAIN) { // the brain: jump straight to its death state
+                    gPlayer[0].state = PLAYERSTATE_STANDBY;
+                    gBosses[bi].state = 20;
+                    gBosses[bi].swork[1] = gBosses[bi].swork[2] = 1000;
+                    gBosses[bi].swork[6] = 1;
+                    D_ctx_80177A48[0] = 0.0f;
+                    D_ctx_80177A48[1] = 0.1f;
+                    gCsFrameCount = 0;
+                    continue;
+                }
                 if (gBosses[bi].obj.id == OBJ_BOSS_AND_ANDROSS) {
                     gBosses[bi].swork[4] = gBosses[bi].swork[5] = -1; // Andross: both hands gone
                 }

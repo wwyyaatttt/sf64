@@ -5,6 +5,7 @@
  */
 
 #include "global.h"
+#include "mods.h"
 #include "assets/ast_bolse.h"
 
 #include "prevent_bss_reordering.h"
@@ -859,6 +860,72 @@ s32 Bolse_8018E05C(BoBase* this, s32 index) {
     return ret;
 }
 
+#if MODS_COOP == 1
+/* co-op: the same arc check against player 2 */
+s32 Coop_Bolse_ArcVsP2(BoBase* this, s32 index) {
+    s32 i;
+    s32 pad;
+    f32 xRot;
+    f32 xLength;
+    f32 zLength;
+    f32 zScale;
+    f32 yRot;
+    bool ret = false;
+    Vec3f src;
+    Vec3f dest;
+
+    zScale = sElectricArc[index].zScale * 400.0f;
+    xLength = sElectricArc[index].xLength;
+    zLength = sElectricArc[index].zLength;
+    xRot = sElectricArc[index].xRot;
+    yRot = sElectricArc[index].yRot;
+
+    Matrix_Push(&gGfxMatrix);
+    Matrix_RotateX(gCalcMatrix, -xRot * M_DTOR, MTXF_NEW);
+
+    yRot += this->obj.rot.y;
+    if (yRot >= 360.0f) {
+        yRot -= 360.0f;
+    }
+
+    Matrix_RotateY(gCalcMatrix, -yRot * M_DTOR, MTXF_APPLY);
+
+    src.x = gPlayer[1].pos.x - (this->obj.pos.x + xLength);
+    src.y = gPlayer[1].pos.y - (this->obj.pos.y + 580.0f);
+    src.z = gPlayer[1].trueZpos - (this->obj.pos.z + zLength);
+
+    Matrix_MultVec3fNoTranslate(gCalcMatrix, &src, &dest);
+
+    if ((fabsf(dest.x) < 100.0f) && (fabsf(dest.y) < 200.0f)) {
+        if ((dest.z >= 0.0f) && (dest.z < zScale) && (gPlayer[1].hitTimer == 0)) {
+            Player_ApplyDamage(&gPlayer[1], 0, 40);
+
+            if (dest.y > 0.0f) {
+                gPlayer[1].knockback.y = 20.0f;
+            } else {
+                gPlayer[1].knockback.y = -20.0f;
+            }
+
+            for (i = 0; i < 5; i++) {
+                Effect_ElectricArc_Spawn(gPlayer[1].pos.x + RAND_FLOAT_CENTERED(30.0f),
+                                         gPlayer[1].pos.y + RAND_FLOAT(10.0f),
+                                         gPlayer[1].trueZpos + RAND_FLOAT_CENTERED(30.0f), gPlayer[1].vel.x,
+                                         gPlayer[1].vel.y + gPlayer[1].knockback.y, gPlayer[1].vel.z,
+                                         RAND_FLOAT(0.1f) + 0.1f, gPlayer[1].num + 11);
+            }
+
+            Effect_Effect386_Spawn1(gPlayer[1].pos.x + RAND_FLOAT_CENTERED(10.0f), gPlayer[1].pos.y + RAND_FLOAT(10.0f),
+                                    gPlayer[1].trueZpos + RAND_FLOAT_CENTERED(10.0f), 0.0f, 15.0f, 0.0f, 2.0f, 5);
+        }
+        ret = true;
+    }
+
+    Matrix_Pop(&gGfxMatrix);
+
+    return ret;
+}
+#endif
+
 s32 Bolse_8018E3FC(BoBase* this) {
     s32 i;
     s32 j;
@@ -917,6 +984,11 @@ s32 Bolse_8018E3FC(BoBase* this) {
                 sElectricArc[i].zScale = (z / 400.0f);
 
                 Bolse_8018E05C(this, i);
+#if MODS_COOP == 1
+                if (Coop_P2IsFlying()) {
+                    Coop_Bolse_ArcVsP2(this, i);
+                }
+#endif
 
                 sShieldReactor[i].status = 0;
             }
@@ -1783,6 +1855,11 @@ void Bolse_EffectBoLaserShot_Update(EffectBoLaserShot* this) {
             if (gPlayer[0].barrelRollAlpha == 0) {
                 Effect_CheckPlayerCollision(&gPlayer[0], this, 150.0f);
             }
+#if MODS_COOP == 1
+            if (Coop_P2IsFlying() && (gPlayer[1].barrelRollAlpha == 0)) {
+                Effect_CheckPlayerCollision(&gPlayer[1], this, 150.0f);
+            }
+#endif
 
             Math_SmoothStepToF(&this->scale2, 30.0f, 1.0f, 10.0f, 0.0f);
 
