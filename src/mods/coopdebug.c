@@ -5,10 +5,19 @@
  * Row C0/C1: controller hold buttons, stick x+100, stick y+100 for controllers 0 and 1.
  * Row BST: boostMeter, boostCooldown, U-turn brake/down timers (P1, then P2).
  * Row CAM: |P1 cam.eye.x| |P1 cam.eye.y| |P1 xPath| gPlayerNum gMainController. */
+#if MODS_COOP == 1
+extern s32 gCoopLog[8][4]; // fox_play.c (co-op): last events, oldest first from gCoopLogN
+extern s32 gCoopLogN;
+#else
+static s32 gCoopLog[8][4];
+static s32 gCoopLogN = 0;
+#endif
+
 void Coop_DrawDebug(void) {
     s32 i;
     s32 y;
     Player* p;
+    static char* sEvNames[] = { "", "PARK", "SPWN", "DOWN", "RGRP", "FOX" };
 
     if ((gGameState != GSTATE_PLAY) || (gDrawMode != DRAW_PLAY) || (gPlayer == NULL)) {
         return;
@@ -50,4 +59,21 @@ void Coop_DrawDebug(void) {
         Graphics_DisplaySmallNumber(90 + i * 130, 220, gUturnBrakeTimers[i]);
         Graphics_DisplaySmallNumber(110 + i * 130, 220, gUturnDownTimers[i]);
     }
+    // EVENT LOG (top right): the last 8 co-op events, newest at the bottom: name, frame, a, b
+    for (i = 0; i < 8; i++) {
+        s32* e = gCoopLog[(gCoopLogN + i) % 8];
+
+        if ((e[0] > 0) && (e[0] < 6)) {
+            y = 60 + i * 9;
+            Graphics_DisplaySmallText(200, y, 1.0f, 1.0f, sEvNames[e[0]]);
+            Graphics_DisplaySmallNumber(236, y, e[1]);
+            Graphics_DisplaySmallNumber(272, y, (e[2] < 0) ? -e[2] : e[2]);
+            Graphics_DisplaySmallNumber(296, y, (e[3] < 0) ? -e[3] : e[3]);
+        }
+    }
+    // GFX: lights used (of 256), matrices used (of 1152), master display-list words used (of 4992), so far this frame
+    Graphics_DisplaySmallText(190, 210, 1.0f, 1.0f, "GFX");
+    Graphics_DisplaySmallNumber(216, 210, (s32) (gLight - gGfxPool->lights));
+    Graphics_DisplaySmallNumber(244, 210, (s32) (gGfxMtx - gGfxPool->mtx));
+    Graphics_DisplaySmallNumber(280, 210, (s32) (gMasterDisp - gGfxPool->masterDL));
 }

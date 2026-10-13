@@ -1053,7 +1053,7 @@ void PlayerShot_CollisionCheck(PlayerShot* shot) {
                             }
                         }
                         if (boss->obj.id == OBJ_BOSS_SY_SHOGUN) {
-                            boss->swork[19] = shot->sourceId;
+                            boss->swork[19] = SHOT_CREDIT(shot) - 1; // co-op: P2 counts as Fox (0)
                         }
                         boss->dmgPart = colResult - 1;
 #if MODS_COOP_DEBUG == 1

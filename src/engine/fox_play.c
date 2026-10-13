@@ -2524,6 +2524,24 @@ s32 Coop_KidMode(s32 num) {
  * P2 joins with START on another controller, can't pause and can't lose lives: when shot down they respawn
  * beside Fox a few seconds later. Level flow, camera, checkpoints and Game Over stay Fox's.
  */
+/* test builds: ring of the last co-op events (code, frame, a, b), drawn by the debug overlay */
+s32 gCoopLog[8][4];
+s32 gCoopLogN = 0;
+static s32 sCoopLastFoxState = -1;
+
+static void Coop_Trace(s32 code, s32 a, s32 b) {
+#if MODS_COOP_DEBUG == 1
+    s32* e = gCoopLog[gCoopLogN % 8];
+
+    e[0] = code;
+    e[1] = gGameFrameCount;
+    e[2] = a;
+    e[3] = b;
+    gCoopLogN++;
+#endif
+}
+#define COOP_TRACE Coop_Trace
+
 static s32 sCoopController = -1; // controller flying P2, -1 = nobody has joined
 static OSContPad sCoopHold;
 static OSContPad sCoopPress;
@@ -2731,6 +2749,7 @@ static bool Coop_UpdateP2State(Player* p2) {
         }
         p2->state = PLAYERSTATE_STANDBY; // Fox is in a cutscene / warp / down: P2 waits off-screen
         p2->csEventTimer = 30;
+        COOP_TRACE(1, p1->state, p2->state); // 1 = P2 parked (fox state, p2 state before)
     }
     p2->draw = false;
     if (foxFlying && (p1->state == PLAYERSTATE_ACTIVE)) { // (re)spawn only beside a Fox in level flight
@@ -2740,6 +2759,7 @@ static bool Coop_UpdateP2State(Player* p2) {
             sCoopRespawnExtra--;
         } else {
             shields = p2->shields; // > 0 = P2 only waited out a cutscene: keep their shields
+            COOP_TRACE(2, (s32) p1->pos.x, (s32) p1->trueZpos); // 2 = P2 spawn (fox x, fox z)
             Coop_SpawnP2(p2);
             if (shields > 0) {
                 p2->shields = shields;
@@ -2812,6 +2832,7 @@ static void Coop_TetherP2(Player* p2) {
     } else if (++sCoopOffscreenFrames >= (sCoopKid[1] ? 120 : 240)) {
         sCoopOffscreenFrames = 0;
         shields = p2->shields;
+        COOP_TRACE(4, (s32) dist, sCoopOffscreenFrames); // 4 = P2 regroup
         Coop_SpawnP2(p2);
         p2->shields = shields;
         return;
@@ -2833,6 +2854,7 @@ static void Coop_TetherP2(Player* p2) {
 static void Coop_P2Down(Player* p2) {
     s32 i;
 
+    COOP_TRACE(3, (s32) p2->pos.x, (s32) p2->trueZpos); // 3 = P2 down
     Player_PlaySfx(p2->sfxSource, NA_SE_ARWING_EXPLOSION, p2->num);
     for (i = 0; i < 8; i++) {
         Effect_Effect357_Spawn50(p2->pos.x, p2->pos.y, p2->trueZpos, 1.0f);
@@ -7341,6 +7363,10 @@ void Play_Update(void) {
     }
     if (!gVersusMode) {
         Coop_UpdateKidToggles(); // hold L ~2 s: KID / NORMAL for your own ship
+    }
+    if (gPlayer[0].state != sCoopLastFoxState) {
+        COOP_TRACE(5, sCoopLastFoxState, gPlayer[0].state); // 5 = Fox state change (old, new)
+        sCoopLastFoxState = gPlayer[0].state;
     }
 #endif
 #if MODS_COOP_DEBUG == 1
