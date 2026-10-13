@@ -7395,6 +7395,8 @@ void Play_Update(void) {
         gMissionStatus = MISSION_ACCOMPLISHED;
         gPlayer[0].state = PLAYERSTATE_LEVEL_COMPLETE;
         gPlayer[0].csState = 0;
+        gPlayer[0].csTimer = 0;
+        gCsFrameCount = 0; // the level-complete scripts are timed from 0 (boss deaths reset it too)
     }
     if ((gControllerPress[gMainController].button & D_JPAD) && (gPlayer[0].state == PLAYERSTATE_ACTIVE)) {
         gPlayer[0].shields = 0; // P1 D-pad down: Fox goes down (2: Player_UpdateEffects decrements it first)
