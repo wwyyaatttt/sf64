@@ -2547,8 +2547,7 @@ static OSContPad sCoopHold;
 static OSContPad sCoopPress;
 
 static bool Coop_LevelAllowed(void) {
-    if ((gCurrentLevel == LEVEL_VERSUS) || (gCurrentLevel == LEVEL_TRAINING) || (gCurrentLevel == LEVEL_TITANIA) ||
-        (gCurrentLevel == LEVEL_MACBETH) || (gCurrentLevel == LEVEL_AQUAS)) {
+    if ((gCurrentLevel == LEVEL_VERSUS) || (gCurrentLevel == LEVEL_TRAINING)) {
         return false;
     }
     return true;
@@ -2731,7 +2730,8 @@ static bool Coop_UpdateP2State(Player* p2) {
 
     Coop_CheckJoin();
     // a U-turn is a player state, not a cutscene: Fox (or P2) turning around keeps both ships in the air
-    foxFlying = (sCoopController >= 0) && (p1->form == FORM_ARWING) &&
+    foxFlying = (sCoopController >= 0) &&
+                ((p1->form == FORM_ARWING) || (p1->form == FORM_LANDMASTER) || (p1->form == FORM_BLUE_MARINE)) &&
                 ((p1->state == PLAYERSTATE_ACTIVE) || (p1->state == PLAYERSTATE_U_TURN));
 
     if ((p2->state == PLAYERSTATE_ACTIVE) || (p2->state == PLAYERSTATE_U_TURN)) {
@@ -2772,6 +2772,8 @@ static bool Coop_UpdateP2State(Player* p2) {
 /* On-rails: P2 shares Fox's place on the path (same depth, same turns) and only moves within the screen. */
 static void Coop_UpdatePathP2(Player* p2) {
     Player* p1 = &gPlayer[0];
+    f32 limX;
+    f32 limY;
 
     p2->zPathVel = p1->zPathVel;
     p2->zPath = p1->zPath;
@@ -2789,18 +2791,27 @@ static void Coop_UpdatePathP2(Player* p2) {
     p2->yRot_114 = p1->yRot_114;
     p2->xRot_120 = p1->xRot_120;
     p2->trueZpos = p2->pos.z + p2->camDist;
-    // keep P2 on screen: the view is ~+-220 x +-166 wide at the ships' depth (400 from the camera, 45 deg FOV)
-    if (p2->pos.x > p1->cam.at.x + 150.0f) {
-        p2->pos.x = p1->cam.at.x + 150.0f;
+    // keep P2 on screen: the view is ~+-220 x +-166 wide at the ships' depth (400 from the camera, 45 deg FOV); the
+    // tank (200) and sub (240) cameras sit closer, so their view is narrower
+    limX = 150.0f;
+    limY = 100.0f;
+    if (p2->form == FORM_LANDMASTER) {
+        limX = 110.0f;
+    } else if (p2->form == FORM_BLUE_MARINE) { // keep the whole sub (wings ~45 wide) inside the view
+        limX = 80.0f;
+        limY = 55.0f;
     }
-    if (p2->pos.x < p1->cam.at.x - 150.0f) {
-        p2->pos.x = p1->cam.at.x - 150.0f;
+    if (p2->pos.x > p1->cam.at.x + limX) {
+        p2->pos.x = p1->cam.at.x + limX;
     }
-    if (p2->pos.y > p1->cam.at.y + 100.0f) {
-        p2->pos.y = p1->cam.at.y + 100.0f;
+    if (p2->pos.x < p1->cam.at.x - limX) {
+        p2->pos.x = p1->cam.at.x - limX;
     }
-    if (p2->pos.y < p1->cam.at.y - 100.0f) {
-        p2->pos.y = p1->cam.at.y - 100.0f;
+    if ((p2->pos.y > p1->cam.at.y + limY) && (p2->form != FORM_LANDMASTER)) { // a tank's height comes from the ground
+        p2->pos.y = p1->cam.at.y + limY;
+    }
+    if ((p2->pos.y < p1->cam.at.y - limY) && (p2->form != FORM_LANDMASTER)) {
+        p2->pos.y = p1->cam.at.y - limY;
     }
     p2->bankAngle = p2->rot.z + p2->zRotBank + p2->zRotBarrelRoll;
     while (p2->bankAngle > 360.0f) {
@@ -5997,6 +6008,11 @@ void Player_UpdateOnRails(Player* player) {
             break;
 
         case FORM_BLUE_MARINE:
+#if MODS_COOP == 1
+            if (Coop_IsP2(player)) {
+                Aquas_CoopSwap();
+            }
+#endif
             Aquas_BlueMarineBoost(player);
             Aquas_BlueMarineBrake(player);
             Play_dummy_800B41E0(player);
@@ -6010,6 +6026,11 @@ void Player_UpdateOnRails(Player* player) {
             if ((player->shields <= 0) && (player->radioDamageTimer != 0)) {
                 Player_Down(player);
             }
+#if MODS_COOP == 1
+            if (Coop_IsP2(player)) {
+                Aquas_CoopSwap();
+            }
+#endif
             break;
     }
 }
@@ -7381,7 +7402,7 @@ void Play_Update(void) {
     }
     if (gControllerPress[gMainController].button & L_JPAD) { // P1 D-pad left: the active boss dies to the next hit
         s32 bi;
-#define CHEAT_GUARD 0
+#define CHEAT_GUARD 1
 
         for (bi = 0; bi < ARRAY_COUNT(gBosses); bi++) {
             if (gBosses[bi].obj.status == OBJ_ACTIVE) {

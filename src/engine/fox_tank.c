@@ -1,4 +1,5 @@
 #include "global.h"
+#include "mods.h"
 #include "assets/ast_landmaster.h"
 #include "assets/ast_titania.h"
 
@@ -1134,9 +1135,45 @@ s32 func_tank_80046E40(Player* player, f32* hitboxData, s32* index, f32 xPos, f3
     return 0;
 }
 
+#if MODS_COOP == 1
+static void Coop_TankSwap(Player* player) {
+    static u8 sB[3];
+    static f32 sF[4];
+    static s32 sBurners;
+    static Vec3f sV;
+    static f32 sMa[3];
+    u8 b;
+    f32 f;
+    s32 n;
+    Vec3f v;
+    s32 i;
+
+    if (gVersusMode || (gNumPlayers != 2) || (player->num != 1)) {
+        return;
+    }
+    b = D_800C9F00, D_800C9F00 = sB[0], sB[0] = b;
+    b = D_800C9F04, D_800C9F04 = sB[1], sB[1] = b;
+    b = D_800C9F08, D_800C9F08 = sB[2], sB[2] = b;
+    f = D_800C9F10, D_800C9F10 = sF[0], sF[0] = f;
+    f = D_800C9F20, D_800C9F20 = sF[1], sF[1] = f;
+    f = D_800C9F24, D_800C9F24 = sF[2], sF[2] = f;
+    f = D_800C9F28, D_800C9F28 = sF[3], sF[3] = f;
+    n = sTankActiveBurnerCount, sTankActiveBurnerCount = sBurners, sBurners = n;
+    v = D_tank_800C9F2C, D_tank_800C9F2C = sV, sV = v;
+    if (gCurrentLevel == LEVEL_MACBETH) { // Macbeth overlay only: platform height under the tank
+        for (i = 0; i < 3; i++) {
+            f = D_MA_801BE250[27 + i], D_MA_801BE250[27 + i] = sMa[i], sMa[i] = f;
+        }
+    }
+}
+#endif
+
 void Tank_UpdateOnRails(Player* player) {
     s32 pad;
 
+#if MODS_COOP == 1
+    Coop_TankSwap(player); // P2: swap in P2's tank scratch state
+#endif
     player->wingPosition = 1;
     func_tank_80045130(player);
     sTankActiveBurnerCount = 0;
@@ -1194,6 +1231,9 @@ void Tank_UpdateOnRails(Player* player) {
     if ((player->shields <= 0) && (player->radioDamageTimer != 0)) {
         Player_Down(player);
     }
+#if MODS_COOP == 1
+    Coop_TankSwap(player); // P2: swap Fox's back
+#endif
 }
 
 // lots of fake stuff here

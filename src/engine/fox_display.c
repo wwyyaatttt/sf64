@@ -317,6 +317,20 @@ void Display_Landmaster(Player* player) {
         sp58.z = 2400.0f + sp64;
         Matrix_MultVec3f(gGfxMatrix, &sp58, &D_display_801613E0[1]);
     }
+#if MODS_COOP == 1
+    if ((gNumPlayers == 2) && !gVersusMode && (player->num == 1)) { // co-op: P2's tank reticle (slots 2, 3)
+        sp64 = 0.0f;
+        if (gChargeTimers[1] >= 20) {
+            sp64 = (s32) (gGameFrameCount % 8U) * 80.0f;
+        }
+        sp58.x = 0.0f;
+        sp58.y = 0.0f;
+        sp58.z = 1200.0f;
+        Matrix_MultVec3f(gGfxMatrix, &sp58, &D_display_801613E0[2]);
+        sp58.z = 2400.0f + sp64;
+        Matrix_MultVec3f(gGfxMatrix, &sp58, &D_display_801613E0[3]);
+    }
+#endif
 
     Matrix_SetGfxMtx(&gMasterDisp);
 
@@ -1964,6 +1978,9 @@ void Display_Update(void) {
 
     if ((gCurrentLevel == LEVEL_AQUAS) && (gPlayer[0].state == PLAYERSTATE_ACTIVE)) {
         Aquas_BlueMarineReticle_Draw();
+#if MODS_COOP == 1
+        Aquas_CoopP2Reticle_Draw();
+#endif
     }
 
     if (((gCurrentLevel == LEVEL_CORNERIA) || (gCurrentLevel == LEVEL_VENOM_ANDROSS)) &&

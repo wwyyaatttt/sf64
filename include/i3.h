@@ -89,6 +89,8 @@ void Solar_LevelComplete(Player* player);
 
 void Aquas_InitLevel(void);
 void Aquas_BlueMarineReticle_Draw(void);
+void Aquas_CoopSwap(void);            // Family co-op: swap P2's Blue-Marine state in / out
+void Aquas_CoopP2Reticle_Draw(void);  // Family co-op: P2's (cyan) sub reticle
 void Aquas_UpdateCamera(Player*);
 void Aquas_BlueMarineMove(Player*);
 void Aquas_801ABA40(PlayerShot*);

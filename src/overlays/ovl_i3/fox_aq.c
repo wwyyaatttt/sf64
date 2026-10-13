@@ -5,6 +5,7 @@
  */
 
 #include "global.h"
+#include "mods.h"
 #include "assets/ast_blue_marine.h"
 #include "assets/ast_aquas.h"
 #include "actordebris.h"
@@ -207,6 +208,76 @@ s32 D_i3_801C4450;
 s32 D_i3_801C4454;
 f32 D_i3_801C4458;
 f32 D_i3_801C445C;
+
+#if MODS_COOP == 1
+static const u8 sCoopSubF[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 21, 22, 23, 27, 28 }; // D_i3_801C41B8 slots
+static const u8 sCoopSubS[] = { 0, 1, 3, 4, 5, 7 };                                       // D_i3_801C4190 slots
+static f32 sCoopSubFv[ARRAY_COUNT(sCoopSubF)];
+static s32 sCoopSubSv[ARRAY_COUNT(sCoopSubS)];
+static s32 sCoopSub4454;
+static f32 sCoopSub4458;
+static f32 sCoopSub445C;
+static s32 sCoopSubSwapped = false;
+static f32 sCoopSubLightF[4]; // light 3 x, y, z, brightness while P2's state is swapped in
+static s32 sCoopSubLightI[3]; // light 3 r, g, b
+static u8 sCoopSubBlur;
+static s32 sCoopReticleCyan = false;
+
+static void Aquas_CoopReset(void) {
+    s32 i;
+
+    for (i = 0; i < ARRAY_COUNT(sCoopSubFv); i++) {
+        sCoopSubFv[i] = 0.0f;
+    }
+    for (i = 0; i < ARRAY_COUNT(sCoopSubSv); i++) {
+        sCoopSubSv[i] = 0;
+    }
+    sCoopSub4454 = 0;
+    sCoopSub4458 = sCoopSub445C = 0.0f;
+    sCoopSubSwapped = false;
+}
+
+/* Swap P2's sub state in (first call) / out (second call). */
+void Aquas_CoopSwap(void) {
+    s32 i;
+    f32 f;
+    s32 n;
+
+    for (i = 0; i < ARRAY_COUNT(sCoopSubF); i++) {
+        f = D_i3_801C41B8[sCoopSubF[i]];
+        D_i3_801C41B8[sCoopSubF[i]] = sCoopSubFv[i];
+        sCoopSubFv[i] = f;
+    }
+    for (i = 0; i < ARRAY_COUNT(sCoopSubS); i++) {
+        n = D_i3_801C4190[sCoopSubS[i]];
+        D_i3_801C4190[sCoopSubS[i]] = sCoopSubSv[i];
+        sCoopSubSv[i] = n;
+    }
+    n = D_i3_801C4454, D_i3_801C4454 = sCoopSub4454, sCoopSub4454 = n;
+    f = D_i3_801C4458, D_i3_801C4458 = sCoopSub4458, sCoopSub4458 = f;
+    f = D_i3_801C445C, D_i3_801C445C = sCoopSub445C, sCoopSub445C = f;
+    if (!sCoopSubSwapped) { // P2 in: remember Fox's light 3 and blur
+        sCoopSubLightF[0] = gLight3x;
+        sCoopSubLightF[1] = gLight3y;
+        sCoopSubLightF[2] = gLight3z;
+        sCoopSubLightF[3] = gLight3Brightness;
+        sCoopSubLightI[0] = gLight3R;
+        sCoopSubLightI[1] = gLight3G;
+        sCoopSubLightI[2] = gLight3B;
+        sCoopSubBlur = gBlurAlpha;
+    } else { // P2 out: put them back untouched
+        gLight3x = sCoopSubLightF[0];
+        gLight3y = sCoopSubLightF[1];
+        gLight3z = sCoopSubLightF[2];
+        gLight3Brightness = sCoopSubLightF[3];
+        gLight3R = sCoopSubLightI[0];
+        gLight3G = sCoopSubLightI[1];
+        gLight3B = sCoopSubLightI[2];
+        gBlurAlpha = sCoopSubBlur;
+    }
+    sCoopSubSwapped ^= 1;
+}
+#endif
 
 #include "prevent_bss_reordering.h"
 
@@ -476,6 +547,9 @@ void Aquas_InitLevel(void) {
     D_i3_801C4190[5] = 0;
     D_i3_801C41B8[25] = gSurfaceWaterYPos;
     D_i3_801C41B8[26] = 128.0f;
+#if MODS_COOP == 1
+    Aquas_CoopReset();
+#endif
 }
 
 void Aquas_801A99D4(Player* player) {
@@ -657,6 +731,11 @@ void Aquas_BlueMarineReticle_Draw(void) {
 
         if (D_i3_801C4190[3] == 0) { // Normal
             gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 255, 255, 255, 255);
+#if MODS_COOP == 1
+            if (sCoopReticleCyan) {
+                gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 0, 255, 255, 255);
+            }
+#endif
             x = -10.0f;
             y = 10.0f;
 
@@ -678,6 +757,11 @@ void Aquas_BlueMarineReticle_Draw(void) {
             }
         } else { // Target
             gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 255, 0, 0, 255);
+#if MODS_COOP == 1
+            if (sCoopReticleCyan) {
+                gDPSetPrimColor(gMasterDisp++, 0x00, 0x00, 0, 160, 255, 255);
+            }
+#endif
             Matrix_Translate(gGfxMatrix, D_i3_801C41B8[0], D_i3_801C41B8[1], D_i3_801C41B8[2] + gPlayer[0].zPath,
                              MTXF_APPLY);
             Matrix_Scale(gGfxMatrix, D_i3_801C41B8[5], D_i3_801C41B8[5], D_i3_801C41B8[5], MTXF_APPLY);
@@ -687,6 +771,20 @@ void Aquas_BlueMarineReticle_Draw(void) {
         Matrix_Pop(&gGfxMatrix);
     }
 }
+
+#if MODS_COOP == 1
+void Aquas_CoopP2Reticle_Draw(void) {
+    if ((gNumPlayers != 2) || (gPlayer[1].state != PLAYERSTATE_ACTIVE) || !gPlayer[1].draw ||
+        (gPlayer[1].form != FORM_BLUE_MARINE)) {
+        return;
+    }
+    Aquas_CoopSwap();
+    sCoopReticleCyan = true;
+    Aquas_BlueMarineReticle_Draw();
+    sCoopReticleCyan = false;
+    Aquas_CoopSwap();
+}
+#endif
 
 void Aquas_801AA4BC(Player* player) {
     f32 rotBankTarget;
@@ -874,8 +972,15 @@ void Aquas_BlueMarineMove(Player* player) {
     s32 pad;
 
     Aquas_801AA4BC(player);
+#if MODS_COOP == 1
+    if (player->num == 0) { // water surface / light fade by depth and the jellyfish current: level-wide, Fox only
+        Aquas_801A99D4(player);
+        Aquas_JellyfishCurrent_Wave();
+    }
+#else
     Aquas_801A99D4(player);
     Aquas_JellyfishCurrent_Wave();
+#endif
 
     stickX = -gInputPress->stick_x;
     stickY = +gInputPress->stick_y;
@@ -1090,6 +1195,13 @@ void Aquas_801ABA40(PlayerShot* shot) {
     f32 sp6C;
     Vec3f sp60;
     Vec3f sp54;
+#if MODS_COOP == 1
+    s32 coopP2 = (gNumPlayers == 2) && (shot->sourceId == 1);
+
+    if (coopP2) {
+        Aquas_CoopSwap();
+    }
+#endif
 
     D_i3_801C41B8[21] = shot->obj.pos.x;
     D_i3_801C41B8[22] = shot->obj.pos.y;
@@ -1134,8 +1246,8 @@ void Aquas_801ABA40(PlayerShot* shot) {
         switch (shot->unk_5C) {
             case 0:
                 shot->timer = 50;
-                shot->obj.rot.y = gPlayer[0].rot.y;
-                shot->obj.rot.x = gPlayer[0].rot.x;
+                shot->obj.rot.y = gPlayer[shot->sourceId].rot.y;
+                shot->obj.rot.x = gPlayer[shot->sourceId].rot.x;
                 shot->unk_5C++;
                 break;
 
@@ -1202,13 +1314,19 @@ void Aquas_801ABA40(PlayerShot* shot) {
             D_i3_801C4454--;
         }
     }
+#if MODS_COOP == 1
+    if (coopP2) {
+        Aquas_CoopSwap();
+    }
+#endif
 }
 
 void Aquas_BlueMarineTorpedo(Player* player) {
     s32 i;
     PlayerShot* shot;
 
-    for (i = 15, shot = &gPlayerShots[15]; i < ARRAY_COUNT(gPlayerShots); i++, shot++) {
+    for (i = (player->num == 1) ? 14 : 15, shot = &gPlayerShots[i];
+         i < ((player->num == 1) ? 15 : ARRAY_COUNT(gPlayerShots)); i++, shot++) { // co-op: P2's torpedo uses slot 14
         if (shot->obj.status == SHOT_FREE) {
             Player_SetupArwingShot(player, shot, 0.0f, 0.0f, PLAYERSHOT_LOCK_ON, 50.0f);
             AUDIO_PLAY_SFX(NA_SE_MAR_BOMB_SHOT, shot->sfxSource, 0);
@@ -1224,8 +1342,9 @@ void Aquas_BlueMarineTorpedo(Player* player) {
 
 void Aquas_BlueMarineLaser(Player* player) {
     s32 i;
+    s32 first = (player->num == 1) ? 3 : 0; // co-op: P2's sub fires from slots 3-5
 
-    for (i = 0; i < 3; i++) {
+    for (i = first; i < first + 3; i++) {
         if (gPlayerShots[i].obj.status == SHOT_FREE) {
             Player_SetupArwingShot(player, &gPlayerShots[i], 0.0f, -10.0f, PLAYERSHOT_SINGLE_LASER, 120.0f);
             if (gLaserStrength[gPlayerNum] == LASERS_SINGLE) {
@@ -1531,7 +1650,7 @@ void Aquas_BlueMarineBoost(Player* player) {
 
             player->sfx.boost = 1;
 
-            Math_SmoothStepToF(&D_ctx_801779A8[0], 50.0f, 1.0f, 10.0f, 0.0f);
+            Math_SmoothStepToF(&D_ctx_801779A8[player->num], 50.0f, 1.0f, 10.0f, 0.0f);
         } else {
             D_i3_801C41B8[27] = 0.0f;
 
@@ -1579,7 +1698,7 @@ void Aquas_BlueMarineBrake(Player* player) {
 
         player->sfx.brake = true;
 
-        Math_SmoothStepToF(&D_ctx_801779A8[0], 25.0f, 1.0f, 5.0f, 0.0f);
+        Math_SmoothStepToF(&D_ctx_801779A8[player->num], 25.0f, 1.0f, 5.0f, 0.0f);
     } else {
         if (player->boostMeter > 0.0f) {
             player->boostMeter -= 0.5f;
