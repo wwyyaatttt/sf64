@@ -55,6 +55,138 @@ Gfx* gUnkDisp1;
 Gfx* gMasterDisp;
 Gfx* gUnkDisp2;
 Lightsn* gLight;
+#if MODS_COOP_DEBUG == 1
+extern s32 gGameFrameCount;
+s32 gCoopDlBad[8]; // count, first bad: opcode, w0, w1, game frame, depth, index in its list, 0
+static u32 sCoopSeg[16];
+
+static s32 Coop_DlOpKnown(u32 op) {
+    if ((op <= 0x06) || (op == 0x09) || (op == 0xAF) || ((op >= 0xB0) && (op <= 0xC0)) || ((op >= 0xC8) && (op <= 0xCF)) ||
+        (op >= 0xE4)) {
+        return 1;
+    }
+    return 0;
+}
+
+static void Coop_DlRecord(u32 op, u32 w0, u32 w1, s32 depth, s32 idx) {
+    if (gCoopDlBad[0]++ == 0) {
+        gCoopDlBad[1] = op;
+        gCoopDlBad[2] = w0;
+        gCoopDlBad[3] = w1;
+        gCoopDlBad[4] = gGameFrameCount;
+        gCoopDlBad[5] = depth;
+        gCoopDlBad[6] = idx;
+    }
+}
+
+/* returns 1 when something inside this list was bad (the caller then no-ops the call) */
+static s32 Coop_DlWalk(u32* dl, s32 depth) {
+    s32 n;
+    s32 bad = 0;
+
+    for (n = 0; n < 20000; n++, dl += 2) {
+        u32 w0 = dl[0];
+        u32 w1 = dl[1];
+        u32 op = w0 >> 24;
+        u32 phys = sCoopSeg[(w1 >> 24) & 0xF] + (w1 & 0xFFFFFF);
+        u32 size = 0;
+        s32 check = 0;
+
+        switch (op) {
+            case 0xB8: // G_ENDDL
+                return bad;
+            case 0xBC: // G_MOVEWORD: segment table
+                if ((w0 & 0xFF) == 6) {
+                    sCoopSeg[((w0 >> 8) & 0xFFFF) / 4] = w1 & 0xFFFFFF;
+                }
+                break;
+            case 0x01: // G_MTX
+                check = 1;
+                size = 64;
+                break;
+            case 0x03: // G_MOVEMEM (lights, viewport, lookat)
+                check = 1;
+                size = (w0 >> 16) & 0xFF;
+                break;
+            case 0x04: // G_VTX
+                check = 1;
+                size = w0 & 0x3FF;
+                break;
+            case 0xFD: // G_SETTIMG
+            case 0xFE: // G_SETZIMG
+            case 0xFF: // G_SETCIMG
+                check = 1;
+                break;
+            case 0x06: // G_DL (call or branch)
+                if ((phys >= 0x800000) || (depth >= 12)) {
+                    Coop_DlRecord(op, w0, w1, depth, n);
+                    dl[0] = dl[1] = 0;
+                    bad = 1;
+                } else if (((w0 >> 16) & 0xFF) == 0) { // push = call
+                    if (Coop_DlWalk((u32*) (0x80000000 | phys), depth + 1)) {
+                        dl[0] = dl[1] = 0;
+                        bad = 1;
+                    }
+                } else { // branch: continue there
+                    dl = (u32*) (0x80000000 | phys) - 2;
+                }
+                break;
+            default:
+                if (!Coop_DlOpKnown(op)) {
+                    Coop_DlRecord(op, w0, w1, depth, n);
+                    if (depth > 0) {
+                        return 1; // garbage list: the caller drops the call
+                    }
+                    dl[0] = dl[1] = 0;
+                    bad = 1;
+                }
+                break;
+        }
+        if (check && ((phys + size) > 0x800000)) {
+            Coop_DlRecord(op, w0, w1, depth, n);
+            dl[0] = dl[1] = 0;
+            bad = 1;
+        }
+    }
+    Coop_DlRecord(0x1B8, 0, 0, depth, n); // no G_ENDDL in 20000 commands: runaway list
+    return 1;
+}
+
+static void Coop_DlCheck(void) {
+    s32 i;
+
+    for (i = 0; i < 16; i++) {
+        sCoopSeg[i] = 0;
+    }
+    Coop_DlWalk((u32*) gGfxPool->masterDL, 0);
+}
+
+s32 gCoopGfxPeak[6]; // masterDL words peak, game frame of that peak, mtx peak, lights peak, unkDL1 peak, frames over 90%
+static void Coop_GfxPeak(void) {
+    s32 n = gMasterDisp - gGfxPool->masterDL;
+
+    if (n > gCoopGfxPeak[0]) {
+        gCoopGfxPeak[0] = n;
+        gCoopGfxPeak[1] = gGameFrameCount;
+    }
+    if (n > 4492) {
+        gCoopGfxPeak[5]++;
+    }
+    n = gGfxMtx - gGfxPool->mtx;
+    if (n > gCoopGfxPeak[2]) {
+        gCoopGfxPeak[2] = n;
+    }
+    n = gLight - gGfxPool->lights;
+    if (n > gCoopGfxPeak[3]) {
+        gCoopGfxPeak[3] = n;
+    }
+    n = gUnkDisp1 - gGfxPool->unkDL1;
+    if (n > gCoopGfxPeak[4]) {
+        gCoopGfxPeak[4] = n;
+    }
+    Coop_DlCheck();
+}
+#endif
 FrameBuffer* gFrameBuffer;
 u16* gTextureRender;
 
@@ -279,6 +411,9 @@ void Graphics_ThreadEntry(void* arg0) {
             gSPDisplayList(gMasterDisp++, gGfxPool->unkDL2);
             gDPFullSync(gMasterDisp++);
             gSPEndDisplayList(gMasterDisp++);
+#if MODS_COOP_DEBUG == 1
+            Coop_GfxPeak();
+#endif
         }
         MQ_WAIT_FOR_MESG(&gGfxTaskMesgQueue, NULL);
 

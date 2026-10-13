@@ -5,6 +5,8 @@
  * Row C0/C1: controller hold buttons, stick x+100, stick y+100 for controllers 0 and 1.
  * Row BST: boostMeter, boostCooldown, U-turn brake/down timers (P1, then P2).
  * Row CAM: |P1 cam.eye.x| |P1 cam.eye.y| |P1 xPath| gPlayerNum gMainController. */
+extern s32 gCoopGfxPeak[6]; // sys_main.c (test builds): graphics pool peaks
+extern s32 gCoopDlBad[8];   // sys_main.c (test builds): display-list validator (count, op, w0, w1, frame, depth, index)
 #if MODS_COOP == 1
 extern s32 gCoopLog[8][4]; // fox_play.c (co-op): last events, oldest first from gCoopLogN
 extern s32 gCoopLogN;
@@ -76,4 +78,27 @@ void Coop_DrawDebug(void) {
     Graphics_DisplaySmallNumber(216, 210, (s32) (gLight - gGfxPool->lights));
     Graphics_DisplaySmallNumber(244, 210, (s32) (gGfxMtx - gGfxPool->mtx));
     Graphics_DisplaySmallNumber(280, 210, (s32) (gMasterDisp - gGfxPool->masterDL));
+    // PK (top right, above the event log): peak master display-list words (of 4992), the game frame it happened,
+    // peak matrices (of 1152), frames with the display list over 90% full
+    Graphics_DisplaySmallText(190, 50, 1.0f, 1.0f, "PK");
+    Graphics_DisplaySmallNumber(208, 50, gCoopGfxPeak[0]);
+    Graphics_DisplaySmallNumber(240, 50, gCoopGfxPeak[1]);
+    Graphics_DisplaySmallNumber(274, 50, gCoopGfxPeak[2]);
+    Graphics_DisplaySmallNumber(302, 50, gCoopGfxPeak[5]);
+    // BAD (below the event log): display-list commands the validator rejected: count, opcode, depth, index, frame;
+    // next row: the first bad command's words as hi/lo 16-bit halves (w0 hi, w0 lo, w1 hi, w1 lo)
+    if (gCoopDlBad[0] != 0) {
+        gDPSetPrimColor(gMasterDisp++, 0, 0, 255, 80, 80, 255);
+        Graphics_DisplaySmallText(190, 134, 1.0f, 1.0f, "BAD");
+        Graphics_DisplaySmallNumber(214, 134, gCoopDlBad[0]);
+        Graphics_DisplaySmallNumber(240, 134, gCoopDlBad[1]);
+        Graphics_DisplaySmallNumber(262, 134, gCoopDlBad[5]);
+        Graphics_DisplaySmallNumber(276, 134, gCoopDlBad[6]);
+        Graphics_DisplaySmallNumber(300, 134, gCoopDlBad[4] % 10000);
+        Graphics_DisplaySmallNumber(190, 143, (gCoopDlBad[2] >> 16) & 0xFFFF);
+        Graphics_DisplaySmallNumber(224, 143, gCoopDlBad[2] & 0xFFFF);
+        Graphics_DisplaySmallNumber(258, 143, (gCoopDlBad[3] >> 16) & 0xFFFF);
+        Graphics_DisplaySmallNumber(292, 143, gCoopDlBad[3] & 0xFFFF);
+        gDPSetPrimColor(gMasterDisp++, 0, 0, 255, 255, 0, 255);
+    }
 }
