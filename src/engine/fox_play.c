@@ -7428,8 +7428,34 @@ void Play_Update(void) {
     }
 #endif
 #if MODS_COOP_DEBUG == 1
-    if ((gControllerPress[gMainController].button & U_JPAD) && (gPlayer[0].state == PLAYERSTATE_ACTIVE)) {
-        gMissionStatus = MISSION_ACCOMPLISHED;
+    // controller 2's D-pad right (no menu reads it) in Sector Y's on-rails part: skip to the all-range Shogun fight,
+    // exactly what the level's own trigger object does there (Sector Y can only be completed in the all-range part)
+    if ((gControllerPress[1].button & R_JPAD) && (gCurrentLevel == LEVEL_SECTOR_Y) &&
+        (gLevelMode == LEVELMODE_ON_RAILS) && (gPlayer[0].state == PLAYERSTATE_ACTIVE)) {
+        gPlayer[0].state = PLAYERSTATE_START_360;
+        gPlayer[0].csState = 0;
+        SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_BGM, 50);
+        SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_FANFARE, 50);
+    }
+    // P1 D-pad up (or controller 2's D-pad right): the level ends as if the boss were beaten. "Accomplished" (the
+    // harder exit) only where the game itself can award it; elsewhere the map has no second exit (Aquas: the map's
+    // path lookup for PLANET_NONE runs off its table and hangs)
+    if ((((gControllerPress[gMainController].button & U_JPAD)) || (gControllerPress[1].button & R_JPAD)) &&
+        (gPlayer[0].state == PLAYERSTATE_ACTIVE)) {
+        switch (gCurrentLevel) {
+            case LEVEL_CORNERIA:
+            case LEVEL_SECTOR_Y:
+            case LEVEL_ZONESS:
+            case LEVEL_SECTOR_Z:
+            case LEVEL_KATINA:
+            case LEVEL_MACBETH:
+            case LEVEL_FORTUNA:
+                gMissionStatus = MISSION_ACCOMPLISHED;
+                break;
+            default:
+                gMissionStatus = MISSION_COMPLETE;
+                break;
+        }
         gPlayer[0].state = PLAYERSTATE_LEVEL_COMPLETE;
         gPlayer[0].csState = 0;
         gPlayer[0].csTimer = 0;
