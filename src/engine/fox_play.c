@@ -7440,6 +7440,15 @@ void Play_Update(void) {
     // P1 D-pad up (or controller 2's D-pad right): the level ends as if the boss were beaten. "Accomplished" (the
     // harder exit) only where the game itself can award it; elsewhere the map has no second exit (Aquas: the map's
     // path lookup for PLANET_NONE runs off its table and hangs)
+    // controller 2's D-pad left: the same, but always the plain "mission complete" exit (the easy route on the map)
+    if ((gControllerPress[1].button & L_JPAD) && (gPlayer[0].state == PLAYERSTATE_ACTIVE) &&
+        !((gCurrentLevel == LEVEL_SECTOR_Y) && (gLevelMode == LEVELMODE_ON_RAILS))) {
+        gMissionStatus = MISSION_COMPLETE;
+        gPlayer[0].state = PLAYERSTATE_LEVEL_COMPLETE;
+        gPlayer[0].csState = 0;
+        gPlayer[0].csTimer = 0;
+        gCsFrameCount = 0;
+    }
     if ((((gControllerPress[gMainController].button & U_JPAD)) || (gControllerPress[1].button & R_JPAD)) &&
         (gPlayer[0].state == PLAYERSTATE_ACTIVE)) {
         switch (gCurrentLevel) {
