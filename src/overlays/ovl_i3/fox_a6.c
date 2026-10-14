@@ -5,6 +5,7 @@
  */
 
 #include "global.h"
+#include "mods.h"
 #include "assets/ast_area_6.h"
 
 void Area6_A6GorgonTentacle_RespawnCheck(Boss* this, s32 tentacleIdx);
@@ -1644,7 +1645,14 @@ void Area6_A6GorgonEnergyBalls_ApplyDamage(A6Gorgon* this) {
     if (D_i3_801C2250[A6_BSS_0] == 0) {
         for (i = 3, j = 15; j < 18; j++, i++) {
             if (this->swork[A6_SWK_0 + j] != 0) {
+#if MODS_COOP == 1
+                if ((gGroundClipMode != 0) &&
+                    ((gPlayerShots[15].timer > 0) ||
+                     ((gPlayerShots[12].obj.status != SHOT_FREE) && (gPlayerShots[12].obj.id == PLAYERSHOT_BOMB) &&
+                      (gPlayerShots[12].timer > 0)))) {
+#else
                 if ((gGroundClipMode != 0) && (gPlayerShots[15].timer > 0)) {
+#endif
                     this->swork[A6_SWK_0 + j] -= this->damage;
                 } else if (i + 1 == this->dmgPart) {
                     this->swork[A6_SWK_0 + j] -= this->damage;

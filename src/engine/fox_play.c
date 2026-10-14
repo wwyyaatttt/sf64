@@ -3504,9 +3504,18 @@ void Player_ArwingLaser(Player* player) {
     }
 }
 
+#if MODS_COOP == 1
+// Family co-op: P2's bombs fly in slot 12, Fox's (and every Versus player's) in vanilla slot 15
+#define COOP_BOMB_SLOT(player) ((!gVersusMode && ((player)->num == 1)) ? 12 : (ARRAY_COUNT(gPlayerShots) - 1))
+#else
+#define COOP_BOMB_SLOT(player) (ARRAY_COUNT(gPlayerShots) - 1)
+#endif
+
 void Player_SmartBomb(Player* player) {
+    PlayerShot* bomb = &gPlayerShots[COOP_BOMB_SLOT(player)];
+
     if ((gBombCount[player->num] != 0) && (gBombButton[player->num] & gInputPress->button) &&
-        (gPlayerShots[ARRAY_COUNT(gPlayerShots) - 1].obj.status == SHOT_FREE)) {
+        (bomb->obj.status == SHOT_FREE)) {
         if (gVersusMode) {
             gBombCount[player->num] = 0;
         } else {
@@ -3514,19 +3523,18 @@ void Player_SmartBomb(Player* player) {
         }
 
         if (player->form == FORM_ARWING) {
-            Player_SetupArwingShot(player, &gPlayerShots[ARRAY_COUNT(gPlayerShots) - 1], 0.0f, 0.0f, PLAYERSHOT_BOMB,
-                                   180.0f);
+            Player_SetupArwingShot(player, bomb, 0.0f, 0.0f, PLAYERSHOT_BOMB, 180.0f);
         } else if (player->form == FORM_LANDMASTER) {
-            Player_SetupTankShot(player, &gPlayerShots[ARRAY_COUNT(gPlayerShots) - 1], PLAYERSHOT_BOMB, 180.0f);
+            Player_SetupTankShot(player, bomb, PLAYERSHOT_BOMB, 180.0f);
         } else {
-            Player_SetupOnFootShot(player, &gPlayerShots[ARRAY_COUNT(gPlayerShots) - 1], PLAYERSHOT_BOMB);
+            Player_SetupOnFootShot(player, bomb, PLAYERSHOT_BOMB);
         }
 
-        gPlayerShots[ARRAY_COUNT(gPlayerShots) - 1].unk_48 = 30.0f;
-        gPlayerShots[ARRAY_COUNT(gPlayerShots) - 1].unk_60 = 0;
+        bomb->unk_48 = 30.0f;
+        bomb->unk_60 = 0;
 
         Audio_InitBombSfx(player->num, 1);
-        Audio_PlayBombFlightSfx(player->num, gPlayerShots[ARRAY_COUNT(gPlayerShots) - 1].sfxSource);
+        Audio_PlayBombFlightSfx(player->num, bomb->sfxSource);
     }
 }
 
@@ -3714,18 +3722,18 @@ bool Player_UpdateLockOn(Player* player) {
         }
 
         if (hasBombTarget && (gBombCount[player->num] != 0) &&
-            (gPlayerShots[ARRAY_COUNT(gPlayerShots) - 1].obj.status == SHOT_FREE)) {
+            (gPlayerShots[COOP_BOMB_SLOT(player)].obj.status == SHOT_FREE)) { // homing bomb: same slot as the plain one
             gBombCount[player->num]--;
             if (player->form == FORM_ARWING) {
-                Player_SetupArwingShot(player, &gPlayerShots[ARRAY_COUNT(gPlayerShots) - 1], 0.0f, 0.0f,
-                                       PLAYERSHOT_LOCK_ON, 60.0f);
+                Player_SetupArwingShot(player, &gPlayerShots[COOP_BOMB_SLOT(player)], 0.0f, 0.0f, PLAYERSHOT_LOCK_ON,
+                                       60.0f);
             } else {
-                Player_SetupTankShot(player, &gPlayerShots[ARRAY_COUNT(gPlayerShots) - 1], PLAYERSHOT_LOCK_ON, 60.0f);
+                Player_SetupTankShot(player, &gPlayerShots[COOP_BOMB_SLOT(player)], PLAYERSHOT_LOCK_ON, 60.0f);
             }
-            gPlayerShots[ARRAY_COUNT(gPlayerShots) - 1].unk_48 = 30.0f;
-            gPlayerShots[ARRAY_COUNT(gPlayerShots) - 1].unk_60 = 0;
+            gPlayerShots[COOP_BOMB_SLOT(player)].unk_48 = 30.0f;
+            gPlayerShots[COOP_BOMB_SLOT(player)].unk_60 = 0;
             Audio_InitBombSfx(player->num, 1);
-            Audio_PlayBombFlightSfx(player->num, gPlayerShots[ARRAY_COUNT(gPlayerShots) - 1].sfxSource);
+            Audio_PlayBombFlightSfx(player->num, gPlayerShots[COOP_BOMB_SLOT(player)].sfxSource);
             return true;
         }
     }
