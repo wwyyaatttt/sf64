@@ -7441,7 +7441,26 @@ void Play_Update(void) {
     // harder exit) only where the game itself can award it; elsewhere the map has no second exit (Aquas: the map's
     // path lookup for PLANET_NONE runs off its table and hangs)
     // controller 2's D-pad left: the same, but always the plain "mission complete" exit (the easy route on the map)
-    if ((gControllerPress[1].button & L_JPAD) && (gPlayer[0].state == PLAYERSTATE_ACTIVE) &&
+    // Fortuna: the level only ends from its event script (timer 10100), which also switches to scene setup 1 = the
+    // Great Fox graphics its ending draws; forcing LEVEL_COMPLETE skipped that (bad segment-0x0E calls in the ending).
+    // So there the shortcuts jump the event timer instead: Star Wolf left alive = "complete" (D-pad left), all of
+    // them down = "accomplished" (D-pad right / P1 up).
+    if ((gCurrentLevel == LEVEL_FORTUNA) && (gPlayer[0].state == PLAYERSTATE_ACTIVE) &&
+        ((gControllerPress[1].button & (L_JPAD | R_JPAD)) || (gControllerPress[gMainController].button & U_JPAD))) {
+        if (!(gControllerPress[1].button & L_JPAD)) {
+            gStarWolfTeamAlive[0] = gStarWolfTeamAlive[1] = gStarWolfTeamAlive[2] = gStarWolfTeamAlive[3] = 0;
+        }
+        gAllRangeEventTimer = 10099; // ActorAllRange_UpdateEvents increments it, then Fortuna_UpdateEvents ends
+    } else if ((gCurrentLevel == LEVEL_VENOM_1) && (gPlayer[0].state == PLAYERSTATE_ACTIVE) &&
+               ((gControllerPress[1].button & (L_JPAD | R_JPAD)) ||
+                (gControllerPress[gMainController].button & U_JPAD))) {
+        // Venom 1 has no level-complete cutscene: the dying Golemech calls Venom1_80198414 (team shields saved, next
+        // level = Venom 2 phase 2, the flight into Andross's base). Forcing LEVEL_COMPLETE sent the game to the map,
+        // which has no entry for Venom 1 (planet id -1: its title-card loop wrote display lists over memory).
+        extern void Venom1_80198414(void);
+
+        Venom1_80198414();
+    } else if ((gControllerPress[1].button & L_JPAD) && (gPlayer[0].state == PLAYERSTATE_ACTIVE) &&
         !((gCurrentLevel == LEVEL_SECTOR_Y) && (gLevelMode == LEVELMODE_ON_RAILS))) {
         gMissionStatus = MISSION_COMPLETE;
         gPlayer[0].state = PLAYERSTATE_LEVEL_COMPLETE;
@@ -7450,7 +7469,8 @@ void Play_Update(void) {
         gCsFrameCount = 0;
     }
     if ((((gControllerPress[gMainController].button & U_JPAD)) || (gControllerPress[1].button & R_JPAD)) &&
-        (gPlayer[0].state == PLAYERSTATE_ACTIVE)) {
+        (gPlayer[0].state == PLAYERSTATE_ACTIVE) && (gCurrentLevel != LEVEL_FORTUNA) &&
+        (gCurrentLevel != LEVEL_VENOM_1)) {
         switch (gCurrentLevel) {
             case LEVEL_CORNERIA:
             case LEVEL_SECTOR_Y:
